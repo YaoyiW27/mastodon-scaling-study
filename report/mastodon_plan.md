@@ -295,3 +295,111 @@ Shared Week 2 outputs
 - Push experiment data to individual branches
 - Merge stable scripts / docs into main
 - Start report draft for Experiment 1 and Experiment 2
+
+---
+
+## 13. Week 3 (Mar 31–Apr 6): Federation Experiment (Conditional)
+**Condition**: only proceed if both instances are stable enough by Checkpoint 2.
+
+**Goal**
+
+Measure propagation latency across two Mastodon instances under:
+- idle
+- light load
+- moderate load
+
+**Preparation**
+- Create accounts on both instances
+- Make Instance B follow a user on Instance A
+- Confirm federation works functionally before measuring latency
+
+**Measurement idea**
+- post on Instance A
+- poll timeline on Instance B
+- measure delay until the status appears
+
+Example:
+```python
+import time, requests
+
+def measure_propagation(token_a, token_b, run_id):
+    t0 = time.time()
+    resp = requests.post(
+        "https://<instance-a-endpoint>/api/v1/statuses",
+        json={"status": f"Federation test run {run_id} t={t0}"},
+        headers={"Authorization": f"Bearer {token_a}"}
+    )
+    uri = resp.json()["uri"]
+
+    while True:
+        timeline = requests.get(
+            "https://<instance-b-endpoint>/api/v1/timelines/home",
+            headers={"Authorization": f"Bearer {token_b}"}
+        ).json()
+        if any(uri in p.get("uri", "") for p in timeline):
+            return time.time() - t0
+        time.sleep(0.5)
+```
+
+**Runs**
+- Idle: 5–10 runs
+- Light load: 5–10 runs
+- Moderate load: 5–10 runs
+
+If federation is still unstable, this section becomes:
+- architecture explanation
+- expected delay path
+- future work
+
+---
+
+## 14. Final Week: Analysis, Report, Presentation
+### Project Timeline
+
+| Date Range | Task |
+| :--- | :--- |
+| Apr 4–5 | Finish data collection and tear down AWS resources |
+| Apr 6–8 | Complete report draft and merge stable work into main |
+| Apr 9–11 | Create slides with at least 2–3 result figures |
+| Apr 12 | Rehearsal |
+| Apr 13 / 20 | Presentation / final submission window |
+
+### Planned report structure
+
+1. Introduction & Motivation
+2. Mastodon Architecture Overview
+3. Experiment Setup
+4. Experiment 1: Single-Instance Bottleneck
+5. Experiment 2: Horizontal Scaling
+6. Experiment 3: Federation Under Load *(if completed)*
+7. Discussion: bottlenecks, consistency, tradeoffs, and limitations
+8. Conclusion & Future Work
+
+---
+
+## 15. Cost Strategy
+Because Learner Lab credits are limited, our strategy is to minimize runtime and avoid keeping all resources active simultaneously.
+
+| **Item** | **Strategy** |
+| :--- | :--- |
+| Week 1 deployment | prioritize fast validation and short sessions |
+| Week 2 experiments | short headless Locust runs |
+| Week 3 federation | only attempt if both stability and credits allow |
+
+We will stop ECS tasks and other non-essential resources after each session.
+
+---
+
+### 16. Tech Stack
+
+| **Component** | **Tool** |
+| :--- | :--- |
+| Deployment | CloudFormation (adapted from widdix/mastodon-on-aws using quickstart-no-ses.yml) |
+| Compute | ECS Fargate |
+| Database | RDS PostgreSQL |
+| Cache / Queue | ElastiCache Redis |
+| Storage | S3 |
+| Load Balancer | ALB |
+| Monitoring | CloudWatch + RDS Performance Insights |
+| Load Testing | Locust (Python) |
+| Version Control | GitHub (mastodon-scaling-study) |
