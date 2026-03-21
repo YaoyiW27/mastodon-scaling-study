@@ -7,7 +7,8 @@
 ## Overview
 
 This project studies how a federated social network behaves under load by using Mastodon as a case study.
-We aim to deploy Mastodon on AWS, generate traffic with Locust, and measure how the system performs under increasing load and under limited horizontal scaling.
+
+We aim to deploy Mastodon on AWS, generate traffic with Locust, and analyze system behavior under increasing load and limited horizontal scaling.
 
 Our project focuses on three questions:
 
@@ -22,18 +23,29 @@ Our project focuses on three questions:
 Our deployment is **based on** the `widdix/mastodon-on-aws` project, but AWS Academy Learner Lab introduces important limitations:
 
 - restricted IAM permissions
-- SES email setup unavailable / unreliable
-- Route 53 domain flow may not work smoothly
-- some S3 / CloudFront-related resources may require manual simplification
+- SES email setup unavailable or unreliable
+- Route 53 / DNS flow may not work smoothly
+- some S3 / CloudFront-related resources may require simplification
 - 4-hour lab session timeout
 
 Because of this, we are **not using the original template as-is**.
+
 Instead, we are testing a modified CloudFormation template:
 
 - `quickstart-no-ses.yml` — custom template with SES dependency removed
 
-This custom template is still a work in progress for Learner Lab compatibility.
-The current goal is to achieve a **minimal working Mastodon deployment** first, then move to load testing and analysis.
+This template is still being adapted for Learner Lab compatibility.
+Our current goal is to achieve a **minimal working Mastodon deployment** first, then move to load testing and analysis.
+
+---
+
+## Current Plan
+
+- **Yaoyi**: traffic/access layer, CloudWatch dashboard, horizontal scaling experiment
+- **Yehe**: backend/data layer, deployment adaptation, bottleneck analysis
+- **Shared**: deployment validation, Locust scripts, federation experiment, report integration
+
+If both instances become stable, we will also run a basic federation propagation experiment.
 
 ---
 
@@ -42,7 +54,7 @@ The current goal is to achieve a **minimal working Mastodon deployment** first, 
 ```text
 mastodon-scaling-study/
 ├── README.md
-├── quickstart-no-ses.yml        # Customized CloudFormation template for Learner Lab (SES removed)
+├── quickstart-no-ses.yml
 ├── infra/
 │   └── cloudwatch-dashboard.json
 ├── locust/
@@ -53,3 +65,14 @@ mastodon-scaling-study/
 └── results/
     ├── yaoyi/
     └── yehe/
+```
+
+---
+
+## Status
+Current focus:
+- validate one reliable deployment path in Learner Lab
+- document blockers and workarounds
+- prepare smoke tests and experiment scripts
+
+See [report/mastodon_plan.md](report/mastodon_plan.md) for the detailed project plan.
