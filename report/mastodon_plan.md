@@ -178,7 +178,7 @@ PostgreSQL                    Sidekiq workers
 
 ---
 
-## 	Week 1 (Mar 20–23): Deployment Validation + Smoke Test Preparation
+## 	11. Week 1 (Mar 20–23): Deployment Validation + Smoke Test Preparation
 
 **Primary objective**
 
@@ -242,3 +242,56 @@ Also collect:
 - Smoke-test checklist ready
 
 ---
+
+## 12. Week 2 (Mar 24–30): Core Experiments
+**Yaoyi — Experiment 2: Horizontal Scaling**
+
+Goal: evaluate how throughput and latency change with more web tasks.
+
+Example load steps:
+```bash
+for users in 50 100 200 300; do
+  locust -f locustfile.py --host https://<instance-a-endpoint> \
+    --users $users --spawn-rate 10 --run-time 10m --headless \
+    --csv=results/yaoyi/exp2_${users}users
+  sleep 60
+done
+```
+
+Tasks:
+- Compare 1 / 2 / 4 web tasks
+- Enable or simulate ECS scaling if feasible
+- Observe scaling trigger timing and performance effects
+- Record RPS, P95/P99 latency, error rate, and task count
+
+**Yehe — Experiment 1: Single-Instance Bottleneck**
+
+Goal: identify which subsystem becomes the bottleneck first.
+
+Example load steps:
+```bash
+for users in 50 100 200 300 500; do
+  locust -f locustfile.py --host https://<instance-b-endpoint> \
+    --users $users --spawn-rate 10 --run-time 10m --headless \
+    --csv=results/yehe/exp1_${users}users
+  sleep 60
+done
+```
+
+Bottleneck signals:
+| Component | Signal | Interpretation |
+| :--- | :--- | :--- |
+| Web | ECS CPU > 80% | Web tier saturation |
+| PostgreSQL | RDS connections / CPU spike | DB pressure |
+| Sidekiq | Queue depth grows continuously | Worker backlog |
+| ALB | 5xx errors increase | Application overload |
+
+Optional tuning:
+- test SIDEKIQ_CONCURRENCY
+- compare worker behavior under higher load
+- observe whether queue processing improves or DB contention worsens
+
+Shared Week 2 outputs
+- Push experiment data to individual branches
+- Merge stable scripts / docs into main
+- Start report draft for Experiment 1 and Experiment 2
