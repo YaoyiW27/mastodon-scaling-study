@@ -6,54 +6,50 @@
 
 ## Overview
 
-This project stress-tests [Mastodon](https://github.com/mastodon/mastodon)'s distributed architecture on AWS to understand how a real-world federated social network scales under load.
+This project studies how a federated social network behaves under load by using Mastodon as a case study.
+We aim to deploy Mastodon on AWS, generate traffic with Locust, and measure how the system performs under increasing load and under limited horizontal scaling.
 
-We deploy Mastodon instances on AWS ECS Fargate and run three experiments:
-1. **Single-instance bottleneck** — find which component breaks first under increasing load
-2. **Horizontal scaling** — measure throughput improvement when adding ECS tasks behind an ALB
-3. **Federation under load** — measure cross-instance message propagation latency via ActivityPub
+Our project focuses on three questions:
+
+1. **Single-instance bottleneck** — which component becomes the bottleneck first under load?
+2. **Horizontal scaling** — how much performance improves when increasing ECS task count?
+3. **Federation under load** *(nice-to-have)* — how long cross-instance propagation takes under different load levels?
+
+---
+
+## Current Deployment Status
+
+Our deployment is **based on** the `widdix/mastodon-on-aws` project, but AWS Academy Learner Lab introduces important limitations:
+
+- restricted IAM permissions
+- SES email setup unavailable / unreliable
+- Route 53 domain flow may not work smoothly
+- some S3 / CloudFront-related resources may require manual simplification
+- 4-hour lab session timeout
+
+Because of this, we are **not using the original template as-is**.
+Instead, we are testing a modified CloudFormation template:
+
+- `quickstart-no-ses.yml` — custom template with SES dependency removed
+
+This custom template is still a work in progress for Learner Lab compatibility.
+The current goal is to achieve a **minimal working Mastodon deployment** first, then move to load testing and analysis.
 
 ---
 
 ## Repository Structure
 
-```
+```text
 mastodon-scaling-study/
-├── locust/
-│   ├── locustfile.py         # Load test script (Locust)
-│   └── federation_test.py    # Federation latency measurement
+├── README.md
+├── quickstart-no-ses.yml        # Customized CloudFormation template for Learner Lab (SES removed)
 ├── infra/
-│   └── cloudwatch-dashboard.json  # CloudWatch Dashboard config
-├── results/
-│   ├── yaoyi/                # Experiment results - traffic/scaling layer
-│   └── yehe/                 # Experiment results - data/backend layer
+│   └── cloudwatch-dashboard.json
+├── locust/
+│   ├── locustfile.py
+│   └── federation_test.py
 ├── report/
-│   └── mastodon_plan.md      # Full project plan
-└── README.md
-```
-
----
-
-## Setup
-
-See [`report/mastodon_plan.md`](report/mastodon_plan.md) for the full deployment guide.
-
-**Quick summary:**
-- AWS Academy Learner Lab (us-east-1 / us-west-2)
-- Deployed via [`widdix/mastodon-on-aws`](https://github.com/widdix/mastodon-on-aws) CloudFormation template
-- Load testing with [Locust](https://locust.io/)
-- Monitoring via CloudWatch + RDS Performance Insights
-
----
-
-## Tech Stack
-
-| Component | Tool |
-|-----------|------|
-| Compute | AWS ECS Fargate |
-| Database | RDS PostgreSQL |
-| Cache / Queue | ElastiCache Redis |
-| Storage | S3 |
-| Load Balancer | ALB |
-| Monitoring | CloudWatch |
-| Load Testing | Locust |
+│   └── mastodon_plan.md
+└── results/
+    ├── yaoyi/
+    └── yehe/
