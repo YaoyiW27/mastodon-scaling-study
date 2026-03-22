@@ -156,16 +156,24 @@ This strategy reduces infrastructure complexity while preserving the ability to:
 ```text
 mastodon-scaling-study/
 ├── README.md
+├── cloudformation/
+│   ├── v1-no-ses.yml
+│   ├── v2-no-ses-no-cloudfront-s3-public.yml
+│   ├── v3-no-ses-no-cloudfront-no-s3.yml
+│   ├── v4-http-only.yml
+│   └── v5-http-only-flowlog-false.yml
+├── infra/
+│   └── cloudwatch-dashboard.json
 ├── locust/
 │   ├── locustfile.py
 │   └── federation_test.py
-├── infra/
-│   └── cloudwatch-dashboard.json
-├── results/
-│   ├── yaoyi/
-│   └── yehe/
-└── report/
-    └── mastodon_plan.md
+├── report/
+│   └── mastodon_plan.md
+└── results/
+    ├── yaoyi/
+    │   ├── screenshots/
+    │   └── week1_notes.md
+    └── yehe/
 ```
 
 ---
