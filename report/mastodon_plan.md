@@ -9,44 +9,44 @@
 ## 1. Project Goal
 
 This project studies how a federated social network behaves under load by using Mastodon as a real-world case study.
-We aim to deploy Mastodon on AWS, generate traffic with Locust, and analyze system behavior under increasing load and limited horizontal scaling.
 
-Our project focuses on three questions:
+Our original goal was to deploy Mastodon on AWS using a production-style architecture and measure its behavior under load. After Week 1 investigation, we found that the AWS Academy Learner Lab environment imposes significant IAM-related restrictions that block the original ECS/Fargate + CloudFormation deployment path.
+
+As a result, we are pivoting to a **tiny Mastodon deployment strategy** based on **EC2 + Docker Compose**. This allows us to preserve the core research goals of the project while increasing the probability of delivering a working system and meaningful performance observations.
+
+Our project now focuses on three questions:
 
 1. **Single-instance bottleneck** — which component becomes the bottleneck first under load?
-2. **Horizontal scaling** — how much performance improves when increasing ECS task count?
-3. **Federation under load** *(nice-to-have)* — how long cross-instance propagation takes under different load levels?
+2. **Constrained scaling behavior** — how does a minimal Mastodon deployment behave as load increases under limited resources?
+3. **Federation under load** *(nice-to-have)* — how long cross-instance propagation takes under different load levels in a simplified two-instance setup?
 
 ---
 
 ## 2. Success Criteria
 
 ### Must-have
-- One stable Mastodon deployment path in AWS Academy Learner Lab
-- At least one working Mastodon instance on AWS
+- One working Mastodon instance on AWS EC2
 - Valid Locust smoke test
 - Single-instance bottleneck experiment with data
-- Basic horizontal scaling comparison
 - At least 2–3 result graphs for the presentation
+- Clear documentation of deployment tradeoffs and system limitations
 
 ### Nice-to-have
 - Both team members successfully deploy their own Mastodon instances
 - Basic federation propagation experiment (5–10 runs across 2–3 load levels)
 
 ### Stretch
-- Bulk follower fan-out measurement
+- Sidekiq queue backlog analysis
 - Retry analysis
-- Queue / worker tuning analysis
+- Worker/process tuning observations
+- Comparative notes between the original CloudFormation path and the final EC2-based path
 
 ---
 
 ## 3. Go / No-Go Checkpoints
 
 **Checkpoint 1 — Mar 22**
-If we do not have at least one reliable deployment path by Mar 22, we stop planning around full dual-instance execution and focus on:
-- one working instance
-- bottleneck analysis
-- limited scaling study
+If the original CloudFormation/Fargate path remains blocked by Learner Lab IAM restrictions, pivot to EC2 + Docker Compose.
 
 **Checkpoint 2 — Mar 30**
 If the second instance or federation path is still unstable by Mar 30, federation will be reduced to:
@@ -60,12 +60,11 @@ If the second instance or federation path is still unstable by Mar 30, federatio
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| Learner Lab IAM blocks part of CloudFormation | Deployment delay | Keep modified template, document failed resources, simplify stack |
-| Route 53 / ACM / DNS flow unavailable | Public access / HTTPS blocked | Use external domain provider or temporary workaround |
-| S3 / CloudFront stack fails | Static/media path affected | Simplify or defer non-critical media/CDN setup |
-| ECS exec unavailable | Admin setup delayed | Use alternate bootstrap or manual setup path |
-| Second instance unstable | Federation slips | Reduce federation to optional / future work |
-| 4-hour lab timeout | Interrupts experiments | Save configs, stop/restart resources, prioritize short runs |
+| Learner Lab IAM blocks CloudFormation/Fargate resources | Original deployment path fails | Pivot to EC2 + Docker Compose |
+| EC2-based deployment still takes too long to stabilize | Delays experiments | Reduce to one instance first and prioritize bottleneck testing |
+| Federation setup unstable | Week 3 slips | Keep federation as optional / future work |
+| Manual deployment introduces configuration drift | Weak reproducibility | Record all setup steps carefully in repo notes |
+| 4-hour lab timeout or environment interruptions | Lost progress | Save screenshots, commit notes frequently, stop/restart resources carefully |
 
 ---
 
@@ -75,32 +74,49 @@ If the second instance or federation path is still unstable by Mar 30, federatio
 |-----------|-------|
 | Session timeout | Each session expires after about 4 hours |
 | Region restrictions | Only `us-east-1` or `us-west-2` available |
-| IAM restrictions | Limited permissions; some CloudFormation resources may fail |
+| IAM restrictions | Limited permissions; blocked CloudFormation/ECS task role creation |
 | Budget cap | Limited credits per account |
 | Resource recovery | Some resources may need manual restart after timeout |
 
 ### Operational habits
 - Use one agreed region consistently (`us-east-1` unless blocked)
 - Stop non-essential resources after each session
-- Save deployment outputs, stack events, and screenshots after every major step
+- Save screenshots and deployment notes after every major step
 - Expect to restart or recover resources after session timeout
 
 ---
 
 ## 6. Deployment Strategy
 
-Our deployment is **based on** the `widdix/mastodon-on-aws` project, but we are **not using the original template as-is**.
+### Original path (investigated in Week 1)
+We initially attempted to deploy Mastodon using a modified version of the `widdix/mastodon-on-aws` CloudFormation stack.
 
-Instead, we are testing a modified CloudFormation template:
+This path was progressively simplified:
+- remove SES
+- remove CloudFront
+- remove S3
+- remove VPC Flow Logs
+- remove Route 53 / ACM-managed resources
+- switch to HTTP only
 
-- `quickstart-no-ses.yml`
+Despite these changes, deployment still failed because Learner Lab blocked creation of ECS task-related IAM roles (`TaskRole`, `TaskExecutionRole`).
 
-This custom template removes the SES dependency for Learner Lab compatibility.
-However, DNS, ACM certificate validation, S3, and CloudFront-related resources may still require additional workarounds or simplification.
+### New path (selected after Week 1)
+We are pivoting to a **tiny Mastodon deployment** using:
+
+- **EC2**
+- **Docker Compose**
+- **minimal Mastodon runtime components**
+
+This strategy reduces infrastructure complexity while preserving the ability to:
+- run Mastodon
+- generate load
+- observe queue behavior
+- measure latency and throughput
+- attempt federation across two simplified instances
 
 ### Current plan
-- Both teammates attempt to deploy one Mastodon instance in their own AWS Learner Lab account
-- Each person works in their own branch first
+- Each teammate attempts one Mastodon instance using the simplified EC2-based deployment path
 - `main` keeps shared structure, scripts, and documentation
 - Federation is attempted later only if both instances become stable
 
@@ -110,8 +126,8 @@ However, DNS, ACM certificate validation, S3, and CloudFront-related resources m
 
 | Area | Owner | Instance | Main Focus |
 |------|-------|----------|------------|
-| Traffic / access layer | Yaoyi | Instance A | ALB + ECS scaling, CloudWatch dashboard, scaling experiment |
-| Data / messaging layer | Yehe | Instance B | RDS / Redis observations, bottleneck analysis, Sidekiq tuning |
+| Access / traffic-side evaluation | Yaoyi | Instance A | Load generation, latency analysis, result formatting, observability notes |
+| Data / queue-side evaluation | Yehe | Instance B | Redis / Sidekiq observations, bottleneck interpretation, backend behavior |
 | Federation experiment | Shared | A + B | Cross-instance propagation and latency |
 | Shared repo structure / scripts | Shared | - | Locust scripts, result format, report integration |
 
@@ -123,16 +139,15 @@ However, DNS, ACM certificate validation, S3, and CloudFront-related resources m
 - Request latency (P50 / P95 / P99)
 - Throughput (RPS)
 - Error rate
-- ECS CPU / memory utilization
-- ECS task count
-- ALB response time
-- RDS CPU / connections
+- CPU / memory utilization on EC2 or container host
+- Database behavior (connections / CPU if observable)
+- Queue / worker backlog indicators if observable
 
 ### Tier 2 (best effort)
 - Redis queue depth
 - Sidekiq retries
-- Cache hit rate
 - Worker-specific processing time
+- Federation propagation latency under different load levels
 
 ---
 
@@ -141,22 +156,31 @@ However, DNS, ACM certificate validation, S3, and CloudFront-related resources m
 ```text
 mastodon-scaling-study/
 ├── README.md
-├── quickstart-no-ses.yml
+├── cloudformation/
+│   ├── v1-no-ses.yml
+│   ├── v2-no-ses-no-cloudfront-s3-public.yml
+│   ├── v3-no-ses-no-cloudfront-no-s3.yml
+│   ├── v4-http-only.yml
+│   └── v5-http-only-flowlog-false.yml
+├── infra/
+│   └── cloudwatch-dashboard.json
 ├── locust/
 │   ├── locustfile.py
 │   └── federation_test.py
-├── infra/
-│   └── cloudwatch-dashboard.json
-├── results/
-│   ├── yaoyi/
-│   └── yehe/
-└── report/
-    └── mastodon_plan.md
+├── report/
+│   └── mastodon_plan.md
+└── results/
+    ├── yaoyi/
+    │   ├── screenshots/
+    │   └── week1_notes.md
+    └── yehe/
 ```
 
 ---
 
 ## 	10. Mastodon Architecture Overview
+
+**Original target architecture**
 ```text
 Client Request
    ↓
@@ -167,6 +191,20 @@ Web (Ruby on Rails / Puma)  ←→  Redis (queue + cache)
 PostgreSQL                    Sidekiq workers
                                     ↓
                            Federation HTTP POST → Remote Instance
+```
+
+**Pivoted minimal architecture**
+```text
+Client Request
+   ↓
+EC2 host
+   ↓
+Docker Compose services
+   ├── Mastodon web
+   ├── Streaming API
+   ├── Sidekiq
+   ├── PostgreSQL
+   └── Redis
 ```
 
 **Federation path**
@@ -182,173 +220,83 @@ PostgreSQL                    Sidekiq workers
 
 **Primary objective**
 
-Validate a workable deployment path for Mastodon in AWS Learner Lab while both teammates attempt their own instance deployment.
+Determine whether Mastodon can be deployed in AWS Academy Learner Lab using the original CloudFormation-based path.
 
-**Current assumption**
+**What was done**
+- Generated deployment secrets
+- Purchased and configured domain
+- Created Route 53 hosted zone
+- Iteratively simplified the CloudFormation templates (v1–v5)
+- Recorded failure points and screenshots
 
-We are using quickstart-no-ses.yml as the primary template.
-It removes SES dependency, but Route 53, certificate, S3, and CloudFront compatibility may still require adjustments.
+**Key result**
 
-**Shared tasks**
-- Review quickstart-no-ses.yml
-- Identify which resources are still inherited from the original stack
-- Record failed resources in Learner Lab, if any
-- Decide whether DNS is handled through Route 53 or externally
-- Agree on one result format for reporting metrics
-- Confirm which deployment steps are shared vs instance-specific
-
-**Generate Mastodon secrets**
-```bash
-docker run --rm -it ghcr.io/mastodon/mastodon:latest bin/rails secret
-docker run --rm -it ghcr.io/mastodon/mastodon:latest bin/rails secret
-docker run --rm -it ghcr.io/mastodon/mastodon:latest bin/rails mastodon:webpush:generate_vapid_key
-```
-Also collect:
-- ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY
-- ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT
-- ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY
-
-**Deployment attempt**
-- Launch stack using quickstart-no-ses.yml
-- Save CloudFormation stack events and screenshots
-- Record exact failing resource names if deployment does not complete
-
-**Smoke-test readiness checklist**
-- Domain / HTTPS endpoint reachable
-- Mastodon web UI loads
-- Login / registration flow understood
-- Admin creation path confirmed
-- CloudWatch basic metrics visible
-
-**Yaoyi**
-- Deploy Instance A in personal Learner Lab account
-- Prepare CloudWatch dashboard for Tier 1 metrics
-- Define experiment result format
-- Prepare Locust smoke-test workflow
-- Document ALB / ECS / task-count observations
-
-**Yehe**
-- Deploy Instance B in personal Learner Lab account
-- Continue template adaptation if deployment fails
-- Document Learner Lab blockers and workarounds
-- Prepare backend-side observation checklist
-- Explore Sidekiq / Redis / DB-related bottleneck indicators
+The CloudFormation/Fargate path is blocked by Learner Lab IAM restrictions, especially around ECS task role creation.
 
 **Week 1 deliverables**
 - Updated project plan
 - Updated README
-- Deployment status summary
-- At least one confirmed next-step deployment path
-- Smoke-test checklist ready
+- Deployment failure analysis and screenshots
+- Confirmed pivot decision to EC2 + Docker Compose
 
 ---
 
-## 12. Week 2 (Mar 24–30): Core Experiments
-**Yaoyi — Experiment 2: Horizontal Scaling**
+## 12. Week 2 (Mar 24–30): Minimal Deployment + Smoke Test
+**Yaoyi — Instance A**
 
-Goal: evaluate how throughput and latency change with more web tasks.
-
-Example load steps:
-```bash
-for users in 50 100 200 300; do
-  locust -f locustfile.py --host https://<instance-a-endpoint> \
-    --users $users --spawn-rate 10 --run-time 10m --headless \
-    --csv=results/yaoyi/exp2_${users}users
-  sleep 60
-done
-```
+Goal: get one tiny Mastodon instance running on EC2 and prepare for load testing.
 
 Tasks:
-- Compare 1 / 2 / 4 web tasks
-- Enable or simulate ECS scaling if feasible
-- Observe scaling trigger timing and performance effects
-- Record RPS, P95/P99 latency, error rate, and task count
+- Set up EC2-based Mastodon deployment
+- Validate web access and basic application readiness
+- Prepare Locust smoke test workflow
+- Define result format for experiments
 
-**Yehe — Experiment 1: Single-Instance Bottleneck**
+**Yehe — Instance B**
 
-Goal: identify which subsystem becomes the bottleneck first.
+Goal: get a second tiny Mastodon instance running and focus on backend / queue observability.
 
-Example load steps:
-```bash
-for users in 50 100 200 300 500; do
-  locust -f locustfile.py --host https://<instance-b-endpoint> \
-    --users $users --spawn-rate 10 --run-time 10m --headless \
-    --csv=results/yehe/exp1_${users}users
-  sleep 60
-done
-```
-
-Bottleneck signals:
-| Component | Signal | Interpretation |
-| :--- | :--- | :--- |
-| Web | ECS CPU > 80% | Web tier saturation |
-| PostgreSQL | RDS connections / CPU spike | DB pressure |
-| Sidekiq | Queue depth grows continuously | Worker backlog |
-| ALB | 5xx errors increase | Application overload |
-
-Optional tuning:
-- test SIDEKIQ_CONCURRENCY
-- compare worker behavior under higher load
-- observe whether queue processing improves or DB contention worsens
+Tasks:
+- Set up EC2-based Mastodon deployment
+- Document backend process / queue behavior
+- Prepare federation prerequisites if time allows
 
 Shared Week 2 outputs
-- Push experiment data to individual branches
-- Merge stable scripts / docs into main
-- Start report draft for Experiment 1 and Experiment 2
+- One working minimal instance
+- Smoke test results
+- Updated deployment notes
+- Clear next-step plan for experiments
 
 ---
 
-## 13. Week 3 (Mar 31–Apr 6): Federation Experiment (Conditional)
-**Condition**: only proceed if both instances are stable enough by Checkpoint 2.
+## 13. Week 3 (Mar 31–Apr 6): Core Experiments + Federation (Conditional)
+**Experiment 1 — Single-Instance Bottleneck**
 
-**Goal**
+Measure:
+- latency
+- throughput
+- error rate
+- CPU / memory behavior
+- queue backlog indicators
 
-Measure propagation latency across two Mastodon instances under:
-- idle
-- light load
-- moderate load
+**Experiment 2 — Limited Scaling / Constrained Load Behavior**
 
-**Preparation**
-- Create accounts on both instances
-- Make Instance B follow a user on Instance A
-- Confirm federation works functionally before measuring latency
+Because we are no longer using ECS/Fargate autoscaling, this experiment focuses on:
+- system behavior under progressively higher load
+- resource saturation patterns
+- practical scaling limitations in the tiny deployment model
 
-**Measurement idea**
-- post on Instance A
-- poll timeline on Instance B
-- measure delay until the status appears
+**Federation Experiment (optional)**
 
-Example:
-```python
-import time, requests
+Condition: only proceed if both instances are stable enough by Checkpoint 2.
 
-def measure_propagation(token_a, token_b, run_id):
-    t0 = time.time()
-    resp = requests.post(
-        "https://<instance-a-endpoint>/api/v1/statuses",
-        json={"status": f"Federation test run {run_id} t={t0}"},
-        headers={"Authorization": f"Bearer {token_a}"}
-    )
-    uri = resp.json()["uri"]
-
-    while True:
-        timeline = requests.get(
-            "https://<instance-b-endpoint>/api/v1/timelines/home",
-            headers={"Authorization": f"Bearer {token_b}"}
-        ).json()
-        if any(uri in p.get("uri", "") for p in timeline):
-            return time.time() - t0
-        time.sleep(0.5)
-```
-
-**Runs**
-- Idle: 5–10 runs
-- Light load: 5–10 runs
-- Moderate load: 5–10 runs
+Goal:
+- measure propagation latency from Instance A to Instance B
+- compare latency under idle / light / moderate load
 
 If federation is still unstable, this section becomes:
 - architecture explanation
-- expected delay path
+- expected propagation path
 - future work
 
 ---
@@ -358,7 +306,7 @@ If federation is still unstable, this section becomes:
 
 | Date Range | Task |
 | :--- | :--- |
-| Apr 4–5 | Finish data collection and tear down AWS resources |
+| Apr 4–5 | Finish deployment validation and collect experiment data |
 | Apr 6–8 | Complete report draft and merge stable work into main |
 | Apr 9–11 | Create slides with at least 2–3 result figures |
 | Apr 12 | Rehearsal |
@@ -367,13 +315,14 @@ If federation is still unstable, this section becomes:
 ### Planned report structure
 
 1. Introduction & Motivation
-2. Mastodon Architecture Overview
-3. Experiment Setup
-4. Experiment 1: Single-Instance Bottleneck
-5. Experiment 2: Horizontal Scaling
-6. Experiment 3: Federation Under Load *(if completed)*
-7. Discussion: bottlenecks, consistency, tradeoffs, and limitations
-8. Conclusion & Future Work
+2. Original Architecture Goal vs. Real Deployment Constraints
+3. Week 1 Feasibility Investigation
+4. Pivot to Tiny Mastodon on EC2
+5. Experiment 1: Single-Instance Bottleneck
+6. Experiment 2: Constrained Load Behavior
+7. Experiment 3: Federation Under Load (if completed)
+8. Discussion: deployment tradeoffs, system bottlenecks, platform constraints
+9. Conclusion & Future Work
 
 ---
 
@@ -382,11 +331,12 @@ Because Learner Lab credits are limited, our strategy is to minimize runtime and
 
 | **Item** | **Strategy** |
 | :--- | :--- |
-| Week 1 deployment | prioritize fast validation and short sessions |
-| Week 2 experiments | short headless Locust runs |
-| Week 3 federation | only attempt if both stability and credits allow |
+| Week 1 investigation | fast validation, screenshot capture, short sessions |
+| Week 2 deployment | minimal instance size and short validation cycles |
+| Week 3 experiments | short headless Locust runs |
+| Federation | only attempt if both stability and credits allow |
 
-We will stop ECS tasks and other non-essential resources after each session.
+We will stop non-essential resources after each session.
 
 ---
 
@@ -394,12 +344,10 @@ We will stop ECS tasks and other non-essential resources after each session.
 
 | **Component** | **Tool** |
 | :--- | :--- |
-| Deployment | CloudFormation (adapted from widdix/mastodon-on-aws using quickstart-no-ses.yml) |
-| Compute | ECS Fargate |
+| Deployment | EC2 + Docker Compose |
+| Compute | EC2 |
 | Database | RDS PostgreSQL |
-| Cache / Queue | ElastiCache Redis |
-| Storage | S3 |
-| Load Balancer | ALB |
-| Monitoring | CloudWatch + RDS Performance Insights |
+| Cache / Queue | Redis |
+| Monitoring | Basic AWS / system observation, screenshots, logs |
 | Load Testing | Locust (Python) |
 | Version Control | GitHub (mastodon-scaling-study) |
