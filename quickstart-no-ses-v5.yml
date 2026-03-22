@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Mastodon on AWS (no SES, no CloudFront, no S3, no FlowLogs, HTTP only - Learner Lab compatible)
+Description: Mastodon on AWS (no SES, no CloudFront, no S3, FlowLogs: false, HTTP only - Learner Lab compatible)
 
 Parameters:
   DomainName:
