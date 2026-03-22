@@ -1,7 +1,7 @@
 # Yaoyi Week 1 Notes
 
 ## Goal
-Deploy Instance A in the AWS Academy Learner Lab using a progressively simplified Mastodon CloudFormation template.
+Investigate a workable deployment path for Instance A and determine whether Mastodon can be deployed in AWS Academy Learner Lab using the original CloudFormation-based approach.
 
 ## Progress Log
 - **Branch**: Created and switched to `yaoyi/instance-a-setup`; synchronized with the latest changes from `main`.
@@ -36,11 +36,34 @@ Deploy Instance A in the AWS Academy Learner Lab using a progressively simplifie
 - **Analysis**: Simply removing the Flow Log parameters from the template was not enough. The underlying VPC module appears to fall back to its default Flow Log behavior unless Flow Logs are explicitly disabled.
 
 ### Attempt 4 — Template: `v5`
-- **Status**: In progress
-- **Root Change**: Explicitly disabled VPC Flow Logs with `FlowLog: false`.
-- **Reason**: Removing the Flow Log settings alone still triggered the nested `FlowLogModule`.
-- **Objective**: Achieve a successful deployment of the minimum working infrastructure:
-  - ALB
-  - ECS
-  - RDS
-  - Redis
+- **Status**: `FAILED`
+- **Root Cause**: `TaskRole` and `TaskExecutionRole` failed in the nested `WebService` stack.
+- **Analysis**: The deployment progressed further than previous attempts and successfully created core infrastructure components such as VPC, ALB, RDS, and Redis. However, AWS Academy Learner Lab appears to block creation of ECS task-related IAM roles required by the Mastodon application services.
+
+## Current Conclusion
+- The main blocker is no longer storage, DNS, or Flow Logs.
+- The current limiting factor is Learner Lab IAM restrictions on ECS task role creation.
+- The original ECS/Fargate + CloudFormation deployment path is not a practical fit for the AWS Academy Learner Lab environment.
+
+## Pivot Decision
+After multiple template simplification attempts, we decided to pivot away from the CloudFormation/Fargate deployment path.
+
+### New Direction
+We will use a **tiny Mastodon deployment** based on:
+- **EC2**
+- **Docker Compose**
+- a **minimal working Mastodon architecture**
+
+### Reason for the Pivot
+- Learner Lab blocks key IAM-dependent resources required by the original deployment model.
+- Continued CloudFormation debugging would likely consume project time without producing a runnable Mastodon instance.
+- A simpler EC2-based deployment gives us a better chance of producing:
+  - a working demo
+  - measurable load-testing results
+  - bottleneck and federation observations
+  - a stronger final report
+
+## Next Step
+- Define the new EC2 + Docker Compose deployment path
+- Re-scope the project as a tiny Mastodon deployment and evaluation study
+- Continue with one working instance first, then attempt a second instance for federation if time allows
