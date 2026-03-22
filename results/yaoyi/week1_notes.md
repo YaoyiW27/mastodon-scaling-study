@@ -1,27 +1,36 @@
 # Yaoyi Week 1 Notes
 
 ## Goal
-Deploy Instance A in AWS Academy Learner Lab using `quickstart-no-ses.yml`.
+Successfully deploy Instance A in the AWS Academy Learner Lab using a simplified version of `quickstart-no-ses.yml`.
 
 ## Progress Log
-- Created branch `yaoyi/instance-a-setup`
-- Synced latest main branch
-- Preparing AWS Learner Lab deployment
+- **Branch**: Created and switched to `yaoyi/instance-a-setup`; synchronized with the latest changes from `main`.
+- **Secret Generation**: Successfully generated deployment secrets (SecretKeyBase, OtpSecret, Vapid keys) using the Docker image `mastodon:latest`.
+- **Domain Setup**: 
+    - Purchased domain: `mastodon-yaoyi.online`.
+    - Created a Hosted Zone in Route 53.
+    - Updated Namecheap Nameservers to the NS records provided by Route 53.
 
-## Secret generation
-- Generated local Mastodon deployment secrets successfully
-- Will rotate secrets before actual deployment because the first set was exposed in chat
-- Waiting for final domain / Route53 setup confirmation before launching stack
+## Deployment History & Debugging
 
-## Domain setup
-- Purchased domain: `mastodon-yaoyi.online`
-- Created Route 53 hosted zone for the domain
-- Updated Namecheap nameservers to Route 53 NS records
-- DNS propagation may take time, but domain delegation setup is complete
+### Attempt 1 (Template: v2)
+- **Status**: `FAILED` (ROLLBACK_COMPLETE)
+- **Root Cause**: Creation of `BucketPolicyPublic` in the nested stack failed.
+- **Analysis**:
+    - **v1 Logic**: Removed SES, retained CloudFront, set S3 to `CloudFrontRead`.
+    - **v2 Logic**: Removed SES and CloudFront, attempted to set S3 to `PublicRead`.
+- **Conclusion**: AWS Learner Lab strictly prohibits the creation of S3 Bucket policies with public access, which blocked the v2 deployment.
 
-## Deployment attempt 1
-- Template: `quickstart-no-ses-v2.yml`
-- Result: failed
-- First confirmed root cause: `BucketPolicyPublic` creation failed in nested `Bucket` stack
-- Interpretation: Learner Lab likely blocks public-read S3 bucket policy
-- Next step: simplify template further by removing or disabling S3
+### Attempt 2 (Template: v3 - Next Step)
+- **Strategy**: **"Lean & Mean"** — Remove SES, CloudFront, and S3 entirely.
+- **Core Logic**:
+    - **Infrastructure**: Delete all S3-related resource blocks (`Bucket`, `BucketPolicy`) from the template to bypass IAM permission restrictions.
+    - **Application Config**:
+        - Set environment variable `S3_ENABLED=false`.
+        - Remove all `S3_*` related configurations from the ECS Task Definition.
+    - **Trade-off**: Media files will be stored on the container's ephemeral local storage. For the **Scaling Study** project, this is sufficient to test core ECS and RDS performance.
+
+## Next Steps
+- Modify `quickstart-no-ses.yml` to create the v3 version.
+- Re-run CloudFormation deployment to verify core functionality of Instance A.
+- Once the instance is live, rotate secrets by generating a new set of production keys and update `.env.yaoyi.local`.
