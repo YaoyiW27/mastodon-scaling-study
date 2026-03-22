@@ -45,25 +45,23 @@ Investigate a workable deployment path for Instance A and determine whether Mast
 - The current limiting factor is Learner Lab IAM restrictions on ECS task role creation.
 - The original ECS/Fargate + CloudFormation deployment path is not a practical fit for the AWS Academy Learner Lab environment.
 
-## Pivot Decision
-After multiple template simplification attempts, we decided to pivot away from the CloudFormation/Fargate deployment path.
+## Pivot Decision: EC2 + Docker Compose
+Due to the IAM blockers, we have pivoted to a **Minimal Mastodon Deployment** strategy:
+- **Environment**: Single AWS EC2 Instance (`t3.medium`).
+- **Orchestration**: Docker Compose for local service management.
+- [cite_start]**Reasoning**: This path bypasses the "IAM Role Creation" blocker while still allowing us to measure distributed system metrics like job queue latency and database load[cite: 111, 122].
 
-### New Direction
-We will use a **tiny Mastodon deployment** based on:
-- **EC2**
-- **Docker Compose**
-- a **minimal working Mastodon architecture**
+## Implementation Strategy & Current Status
+### Technical Fixes
+* **Network Exposure**: Adjusted container bindings from `127.0.0.1:3000` to `0.0.0.0:3000` to allow external traffic.
+* **Domain Validation**: Aligned the `LOCAL_DOMAIN` environment variable with `mastodon-yaoyi.online` to resolve application-layer 403 errors.
+* **HTTPS Bypass**: Patched `config.force_ssl = false` in the production environment to support HTTP-only testing within the sandbox.
+* **Local Image Rebuild**: Initiated a local `docker compose build` to bake the SSL patch directly into the images, ensuring configuration changes take effect.
 
-### Reason for the Pivot
-- Learner Lab blocks key IAM-dependent resources required by the original deployment model.
-- Continued CloudFormation debugging would likely consume project time without producing a runnable Mastodon instance.
-- A simpler EC2-based deployment gives us a better chance of producing:
-  - a working demo
-  - measurable load-testing results
-  - bottleneck and federation observations
-  - a stronger final report
+### Environment Stabilization
+* **Memory Management**: Successfully configured a **4GB Swap file** on the EC2 host. This is critical for the `t3.medium` instance to handle resource-intensive Docker builds and future load testing without OOM (Out of Memory) crashes.
 
-## Next Step
-- Define the new EC2 + Docker Compose deployment path
-- Re-scope the project as a tiny Mastodon deployment and evaluation study
-- Continue with one working instance first, then attempt a second instance for federation if time allows
+## 6. Next Steps
+1. **Verify Web Access**: Confirm the application is reachable via `http://mastodon-yaoyi.online:3000` after the local build completes.
+2. [cite_start]**Baseline Testing**: Conduct the first "Single Instance Bottleneck" experiment using Locust to find the initial breaking point of the 4GB RAM setup[cite: 119, 122].
+3. [cite_start]**Second Instance**: If the single-node setup is stable, begin deployment of Instance B to test cross-node federation[cite: 128].
