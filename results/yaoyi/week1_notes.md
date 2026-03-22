@@ -6,7 +6,7 @@ Successfully deploy Instance A in the AWS Academy Learner Lab using a simplified
 ## Progress Log
 - **Branch**: Created and switched to `yaoyi/instance-a-setup`; synchronized with the latest changes from `main`.
 - **Secret Generation**: Successfully generated deployment secrets (SecretKeyBase, OtpSecret, Vapid keys) using the Docker image `mastodon:latest`.
-- **Domain Setup**: 
+- **Domain Setup**:
     - Purchased domain: `mastodon-yaoyi.online`.
     - Created a Hosted Zone in Route 53.
     - Updated Namecheap Nameservers to the NS records provided by Route 53.
@@ -14,23 +14,25 @@ Successfully deploy Instance A in the AWS Academy Learner Lab using a simplified
 ## Deployment History & Debugging
 
 ### Attempt 1 (Template: v2)
-- **Status**: `FAILED` (ROLLBACK_COMPLETE)
-- **Root Cause**: Creation of `BucketPolicyPublic` in the nested stack failed.
-- **Analysis**:
-    - **v1 Logic**: Removed SES, retained CloudFront, set S3 to `CloudFrontRead`.
-    - **v2 Logic**: Removed SES and CloudFront, attempted to set S3 to `PublicRead`.
-- **Conclusion**: AWS Learner Lab strictly prohibits the creation of S3 Bucket policies with public access, which blocked the v2 deployment.
+- **Status**: `FAILED`
+- **Root Cause**: `BucketPolicyPublic` failed.
+- **Analysis**: Learner Lab blocks Public S3 policies and IAM changes related to bucket permissions.
 
-### Attempt 2 (Template: v3 - Next Step)
-- **Strategy**: **"Lean & Mean"** — Remove SES, CloudFront, and S3 entirely.
+### Attempt 2 (Template: v3)
+- **Status**: `FAILED`
+- **Root Cause**: `FlowLogModule` failed within the nested `Vpc` stack.
+- **Analysis**: Learner Lab restricts the creation of **VPC Flow Logs** because they require specific IAM permissions to publish logs to CloudWatch, which are prohibited in this environment.
+- **Conclusion**: Even "standard" features like VPC monitoring are too "permission-heavy" for this lab.
+
+### Attempt 3 (Template: v4 - The "Total Survival" Edition)
+- **Strategy**: **Strip everything but the absolute essentials.**
 - **Core Logic**:
-    - **Infrastructure**: Delete all S3-related resource blocks (`Bucket`, `BucketPolicy`) from the template to bypass IAM permission restrictions.
-    - **Application Config**:
-        - Set environment variable `S3_ENABLED=false`.
-        - Remove all `S3_*` related configurations from the ECS Task Definition.
-    - **Trade-off**: Media files will be stored on the container's ephemeral local storage. For the **Scaling Study** project, this is sufficient to test core ECS and RDS performance.
+    - **VPC**: Set `FlowLog: false` (or delete the parameter) to ensure the network stack can deploy without IAM intervention.
+    - **S3 & CloudFront**: Completely removed (same as v3).
+    - **ALB Logs**: Disable `AlbAccessLogBucket` if it continues to trigger IAM errors.
+- **Objective**: Prioritize a "Green" CloudFormation status to get the Mastodon web interface live for scaling tests.
 
 ## Next Steps
-- Modify `quickstart-no-ses.yml` to create the v3 version.
-- Re-run CloudFormation deployment to verify core functionality of Instance A.
-- Once the instance is live, rotate secrets by generating a new set of production keys and update `.env.yaoyi.local`.
+- Create `quickstart-no-ses-v4.yml` by disabling VPC Flow Logs.
+- Clean up any orphaned resources in the AWS Console before retrying.
+- Deploy and verify if the ALB endpoint is reachable via `mastodon-yaoyi.online`.
