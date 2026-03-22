@@ -54,7 +54,12 @@ If both instances become stable, we will also run a basic federation propagation
 ```text
 mastodon-scaling-study/
 ├── README.md
-├── quickstart-no-ses.yml
+├── cloudformation/
+│   ├── v1-no-ses.yml
+│   ├── v2-no-ses-no-cloudfront-s3-public.yml
+│   ├── v3-no-ses-no-cloudfront-no-s3.yml
+│   ├── v4-http-only.yml
+│   └── v5-http-only-flowlog-false.yml
 ├── infra/
 │   └── cloudwatch-dashboard.json
 ├── locust/
@@ -64,6 +69,8 @@ mastodon-scaling-study/
 │   └── mastodon_plan.md
 └── results/
     ├── yaoyi/
+    │   ├── screenshots/
+    │   └── week1_notes.md
     └── yehe/
 ```
 
