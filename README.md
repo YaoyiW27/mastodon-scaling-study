@@ -19,7 +19,9 @@ So far, the project focuses on:
 
 ## Architecture Overview
 
-![Mastodon Scaling Study Architecture](assets/mastodon-study-architecture.png)
+<p align="center">
+  <img src="assets/mastodon-study-architecture.png" alt="Mastodon Scaling Study Architecture" width="600">
+</p>
 
 ---
 
