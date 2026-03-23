@@ -6,46 +6,24 @@
 
 ## Overview
 
-This project studies how a federated social network behaves under load by using Mastodon as a case study.
+This project studies how a federated social network behaves under load using Mastodon as a case study.
 
-We aim to deploy Mastodon on AWS, generate traffic with Locust, and analyze system behavior under increasing load and limited horizontal scaling.
+Our original plan was to deploy Mastodon with a CloudFormation / ECS-based AWS architecture, generate traffic with Locust, and analyze system behavior under load. Because AWS Academy Learner Lab introduced major deployment restrictions, we pivoted to a simpler EC2 + Docker Compose deployment path.
 
-Our project focuses on three questions:
+So far, the project focuses on:
 
 1. **Single-instance bottleneck** — which component becomes the bottleneck first under load?
-2. **Horizontal scaling** — how much performance improves when increasing ECS task count?
-3. **Federation under load** *(nice-to-have)* — how long cross-instance propagation takes under different load levels?
+2. **Minimal federation feasibility** — can a lightweight EC2-hosted Mastodon instance participate in a basic cross-instance federation workflow?
 
 ---
 
-## Current Deployment Status
+## Current Status
 
-Our deployment is **based on** the `widdix/mastodon-on-aws` project, but AWS Academy Learner Lab introduces important limitations:
-
-- restricted IAM permissions
-- SES email setup unavailable or unreliable
-- Route 53 / DNS flow may not work smoothly
-- some S3 / CloudFront-related resources may require simplification
-- 4-hour lab session timeout
-
-Because of this, we are **not using the original template as-is**.
-
-Instead, we are testing a modified CloudFormation template:
-
-- `quickstart-no-ses.yml` — custom template with SES dependency removed
-
-This template is still being adapted for Learner Lab compatibility.
-Our current goal is to achieve a **minimal working Mastodon deployment** first, then move to load testing and analysis.
-
----
-
-## Current Plan
-
-- **Yaoyi**: traffic/access layer, CloudWatch dashboard, horizontal scaling experiment
-- **Yehe**: backend/data layer, deployment adaptation, bottleneck analysis
-- **Shared**: deployment validation, Locust scripts, federation experiment, report integration
-
-If both instances become stable, we will also run a basic federation propagation experiment.
+- The original CloudFormation / ECS deployment path was blocked by Learner Lab IAM and nested-stack limitations.
+- We pivoted to a **single EC2 + Docker Compose** deployment.
+- Yaoyi successfully deployed a working Mastodon instance with **Nginx + HTTPS**.
+- Initial **Locust load testing** was completed.
+- A minimal **federation workflow** between the two instances was successfully validated.
 
 ---
 
@@ -69,17 +47,17 @@ mastodon-scaling-study/
 │   └── mastodon_plan.md
 └── results/
     ├── yaoyi/
-    │   ├── screenshots/
-    │   └── week1_notes.md
+    │   ├── notes.md
+    │   ├── experiment_1_single_instance.md
+    │   ├── experiment_2_federation.md
+    │   └── screenshots/
     └── yehe/
 ```
 
----
-
-## Status
-Current focus:
-- validate one reliable deployment path in Learner Lab
-- document blockers and workarounds
-- prepare smoke tests and experiment scripts
+## Next Steps
+- Finalize Yehe’s notes and screenshots
+- Merge Yehe’s branch into main
+- Consolidate both teammates’ results into the final report
+- Prepare slides / presentation materials
 
 See [report/mastodon_plan.md](report/mastodon_plan.md) for the detailed project plan.
