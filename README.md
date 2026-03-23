@@ -17,6 +17,12 @@ So far, the project focuses on:
 
 ---
 
+## Architecture Overview
+
+![Mastodon Scaling Study Architecture](assets/mastodon-scaling-study-architecture.png)
+
+---
+
 ## Current Status
 
 - The original CloudFormation / ECS deployment path was blocked by Learner Lab IAM and nested-stack limitations.
