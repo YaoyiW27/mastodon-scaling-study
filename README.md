@@ -16,7 +16,7 @@ So far, the project focuses on:
 2. **Bottleneck shifting / worker scaling** — can increasing web-side capacity push the bottleneck from the web layer toward PostgreSQL?
 3. **Vertical scaling** — how does instance size (t3.medium vs t3.large) affect throughput under identical load?
 4. **Component dependency** — how do Redis, Sidekiq queue behavior, and DB connection constraints affect overall system behavior?
-5.**Federation feasibility and latency** — can two lightweight EC2-hosted Mastodon instances support a basic federated workflow, and how does cross-instance propagation behave?
+5. **Federation feasibility and latency** — can two lightweight EC2-hosted Mastodon instances support a basic federated workflow, and how does cross-instance propagation behave?
 
 ---
 
