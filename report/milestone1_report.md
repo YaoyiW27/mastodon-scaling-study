@@ -19,7 +19,9 @@ At the current stage, our experiments are organized into three lines of investig
 2. **Bottleneck shifting / component dependency** — observe whether changing web-side capacity or internal constraints pushes pressure toward PostgreSQL, Redis, Sidekiq, or connection limits.  
 3. **Federation validation / propagation behavior** — validate whether two independently deployed Mastodon instances can support a basic federated workflow and observe simple propagation or recovery behavior across instances.
 
-We use AI as a support tool rather than as a primary system component. AI has helped us with deployment debugging ideas, experiment framing, and documentation refinement. However, all deployment steps, commands, results, and interpretations were manually verified by the team.
+We used AI as a support tool throughout the project, mainly for deployment debugging ideas, experiment framing, and documentation refinement. The benefit was speed: AI helped us quickly generate alternative deployment paths, compare experiment options, and organize our observations into a clearer distributed-systems story.
+
+However, AI suggestions were not always reliable in our actual environment. In several cases, proposed solutions assumed a more permissive cloud setup than AWS Academy Learner Lab actually provides. Because of this, all AI-assisted suggestions had to be manually validated through commands, logs, screenshots, and real deployment outcomes.
 
 To support observability, we rely on lightweight but practical tools: Locust statistics and charts, Docker stats, container logs, curl-based health checks, and Mastodon UI screenshots. Since our environment is AWS Academy Learner Lab, this lightweight observability approach is more practical than a heavy production monitoring stack.
 
@@ -50,7 +52,9 @@ Our current timeline is:
 - **Week 3:** component dependency experiments and federation follow-up tests.
 - **Week 4:** final analysis, report writing, and presentation preparation.
 
-AI has been useful in this project because it speeds up brainstorming, debugging hypotheses, and report drafting. The main benefit is faster iteration when a deployment or experimental plan becomes blocked. The cost is that AI suggestions can be generic, incomplete, or wrong in environment-specific situations, so manual validation remains necessary at every technical step.
+AI played a practical but limited role in our planning process. On the positive side, it helped us iterate faster when the original CloudFormation / ECS deployment path failed. It was useful for generating debugging hypotheses, proposing fallback deployment options, and helping us restructure the project after the pivot to EC2 + Docker Compose.
+
+At the same time, AI also had clear limitations. Some suggestions were too generic, too optimistic, or not aligned with the restrictions of AWS Academy Learner Lab. In other words, AI was useful for brainstorming and reframing the project, but not trustworthy enough to replace direct technical validation. This became an important lesson in itself: AI can accelerate engineering work, but it cannot substitute for systems understanding, manual debugging, and environment-specific verification.
 
 ---
 
@@ -63,6 +67,8 @@ Our longer-term objective is to understand Mastodon not only as a web applicatio
 Observability is central to both the short-term and long-term goals. For this project, we aim to support observability in a concrete and realistic way using metrics and traces that are feasible in our environment: Locust charts, Docker resource snapshots, queue and log observations, and end-user federation visibility checks.
 
 AI is not part of the deployed Mastodon system itself, but it is part of our development workflow. To ensure reliability and cost control, we treat AI outputs as suggestions only. We do not trust AI-generated instructions without validating them through actual deployment, testing, or log inspection.
+
+A secondary objective of this project is to develop stronger engineering judgment in an AI-assisted workflow. Beyond completing the Mastodon case study itself, we want to show that we can use AI productively without over-trusting it: generating ideas quickly, validating them carefully, and adapting when real systems constraints contradict AI-generated suggestions.
 
 ---
 
@@ -83,18 +89,20 @@ These related projects help position our work as part of a broader set of distri
 
 ## 5. Methodology
 
-Our methodology is based on a simplified but functional Mastodon deployment using EC2 + Docker Compose. Each teammate runs one Mastodon instance, and the two instances are connected through valid domains and HTTPS. This allows us to perform both local load-testing experiments and cross-instance federation tests.
+Our methodology is based on a simplified but functional Mastodon deployment using EC2 + Docker Compose. Each teammate runs one Mastodon instance, and the two instances are connected through valid domains and HTTPS. This allows us to perform both local load-testing experiments and cross-instance federation tests in a constrained but realistic environment.
 
 ### Experiment 1 — Single-Instance Bottleneck
 For the first experiment, we use Locust to generate read-heavy traffic against Yaoyi’s Mastodon instance. We measure throughput, response latency, error rate, and container-level resource usage using Locust charts and Docker stats. The goal is to identify which component becomes the first bottleneck under increasing load. This experiment establishes a baseline before we attempt more detailed dependency-oriented tests.
 
 ### Experiment 2 — Bottleneck Shifting / Component Dependency
-For the second experiment, we plan to modify one system factor at a time to see whether the observed bottleneck moves deeper into the stack. Candidate factors include web-side worker capacity, rate-limit behavior, Redis/cache effects, Sidekiq queue behavior, and database connection constraints. The purpose is not to claim production-grade autoscaling, but to study whether the application layer, cache layer, queue layer, and DB layer interact in ways that reveal new bottlenecks or system sensitivities.
+For the second experiment, we modify one system factor at a time to see whether the observed bottleneck moves deeper into the stack. Candidate factors include web-side worker capacity, rate-limit behavior, Redis/cache effects, Sidekiq queue behavior, and database connection constraints. The purpose is not to claim production-grade autoscaling, but to study whether the application layer, cache layer, queue layer, and DB layer interact in ways that reveal new bottlenecks or system sensitivities.
 
 ### Experiment 3 — Federation Validation / Simple Failure Test
-For the third experiment, we validate federation between the two Mastodon instances. At the minimum, this includes remote account discovery, mutual follow, post visibility, and remote interaction propagation. If time allows, we will also run a small follow-up test involving simple latency observation or a partial-outage scenario in which one instance is temporarily unavailable and we observe whether the other catches up after restart.
+For the third experiment, we validate federation between the two Mastodon instances. At minimum, this includes remote account discovery, mutual follow, post visibility, and remote interaction propagation. If time allows, we will also run a small follow-up test involving simple latency observation or a partial-outage scenario in which one instance is temporarily unavailable and we observe whether the other catches up after restart.
 
-AI is used in the methodology only as a support tool for planning and debugging. All experiment execution is manual and reproducible through repository notes, scripts, screenshots, and command traces. Observability is supported by:
+AI is used in this methodology as a planning and debugging assistant rather than as an execution engine. We use it to suggest alternative deployment paths, propose experiment variations, and help organize our distributed-systems story after the original CloudFormation / ECS approach failed. However, we do not treat AI output as evidence. Every deployment step, command, metric, screenshot, and conclusion is manually validated in our actual environment. In practice, AI helps us move faster, but the method itself remains empirical and observation-driven.
+
+Observability is supported by:
 - Locust charts and statistics;
 - Docker stats and container logs;
 - curl-based health and endpoint checks;
@@ -144,5 +152,7 @@ We believe this project is significant because it studies a real federated socia
 People should care about our results for two reasons. First, the project shows how environment constraints can force a major architecture pivot, which is a realistic systems engineering problem. Second, the project demonstrates that distributed systems behavior is not just about adding more cloud resources: it is also about bottlenecks, component dependency, queueing, retry behavior, and cross-instance communication.
 
 Other students in the class could potentially use our project in two ways. They could reference our lightweight EC2 + Docker Compose deployment approach as a reproducible path for constrained environments, and they could also interact with the live instances to help validate federation behavior or user-facing system observations. This makes the project both relevant and extendable.
+
+This project is also useful as evidence of what we can contribute in an AI-assisted engineering environment. Rather than simply asking AI for answers, we used it to accelerate idea generation, then applied human judgment to validate, reject, or refine those suggestions. That ability to combine AI assistance with real systems reasoning is itself part of the project’s value.
 
 ---
