@@ -100,7 +100,7 @@ For the second experiment, we modify one system factor at a time to see whether 
 ### Experiment 3 — Federation Validation / Simple Failure Test
 For the third experiment, we validate federation between the two Mastodon instances. At minimum, this includes remote account discovery, mutual follow, post visibility, and remote interaction propagation. If time allows, we will also run a small follow-up test involving simple latency observation or a partial-outage scenario in which one instance is temporarily unavailable and we observe whether the other catches up after restart.
 
-AI is used in this methodology as a planning and debugging assistant rather than as an execution engine. We use it to suggest alternative deployment paths, propose experiment variations, and help organize our distributed-systems story after the original CloudFormation / ECS approach failed. However, we do not treat AI output as evidence. Every deployment step, command, metric, screenshot, and conclusion is manually validated in our actual environment. In practice, AI helps us move faster, but the method itself remains empirical and observation-driven.
+AI is used in this methodology only as a support tool for planning and debugging. It helps us generate deployment alternatives, experiment ideas, and clearer documentation, but all commands, results, and conclusions are manually validated in our real environment.
 
 Observability is supported by:
 - Locust charts and statistics;
