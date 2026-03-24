@@ -65,8 +65,8 @@ mastodon-scaling-study/
     │   ├── experiment_2_federation.md
     │   └── screenshots/
     └── yehe/
-        ├── locust_results
-        ├── screenshots
+        ├── locust_results/
+        ├── screenshots/
         └── week1_notes.md
 
 
