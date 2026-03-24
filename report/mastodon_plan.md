@@ -17,23 +17,25 @@ As a result, we are pivoting to a **tiny Mastodon deployment strategy** based on
 Our project now focuses on three questions:
 
 1. **Single-instance bottleneck** — which component becomes the bottleneck first under load?
-2. **Constrained scaling behavior** — how does a minimal Mastodon deployment behave as load increases under limited resources?
-3. **Federation under load** *(nice-to-have)* — how long cross-instance propagation takes under different load levels in a simplified two-instance setup?
+2. **Bottleneck shifting / component dependency** — if web-side capacity is increased or system protections are relaxed, does the bottleneck move toward PostgreSQL or other internal components?
+3. **Federation feasibility and propagation behavior** — can two lightweight EC2-hosted Mastodon instances support a basic federated workflow, and what happens to cross-instance delivery under simple failure or latency tests?
 
 ---
 
 ## 2. Success Criteria
 
 ### Must-have
-- One working Mastodon instance on AWS EC2
+- Two working Mastodon instances on AWS EC2
 - Valid Locust smoke test
 - Single-instance bottleneck experiment with data
+- Basic federation validation with screenshots / observations
 - At least 2–3 result graphs for the presentation
 - Clear documentation of deployment tradeoffs and system limitations
 
 ### Nice-to-have
-- Both team members successfully deploy their own Mastodon instances
-- Basic federation propagation experiment (5–10 runs across 2–3 load levels)
+- Bottleneck-shifting or worker-scaling observations
+- Cache / queue / DB connection dependency observations
+- A small federation latency or partial-outage test
 
 ### Stretch
 - Sidekiq queue backlog analysis
@@ -126,9 +128,9 @@ This strategy reduces infrastructure complexity while preserving the ability to:
 
 | Area | Owner | Instance | Main Focus |
 |------|-------|----------|------------|
-| Access / traffic-side evaluation | Yaoyi | Instance A | Load generation, latency analysis, result formatting, observability notes |
-| Data / queue-side evaluation | Yehe | Instance B | Redis / Sidekiq observations, bottleneck interpretation, backend behavior |
-| Federation experiment | Shared | A + B | Cross-instance propagation and latency |
+| Single-instance bottleneck / bottleneck shifting | Yaoyi | Instance A | Load generation, latency analysis, web-layer bottleneck observations, result formatting |
+| Component dependency / backend behavior | Yehe | Instance B | Redis / Sidekiq / DB connection observations, queue behavior, backend interpretation |
+| Federation experiments | Shared | A + B | Cross-instance discovery, propagation, and simple failure / latency tests |
 | Shared repo structure / scripts | Shared | - | Locust scripts, result format, report integration |
 
 ---
@@ -269,9 +271,9 @@ Shared Week 2 outputs
 
 ---
 
-## 13. Week 3 (Mar 31–Apr 6): Core Experiments + Federation (Conditional)
-**Experiment 1 — Single-Instance Bottleneck**
+## 13. Week 3 (Mar 31–Apr 6): Core Experiments + Federation
 
+**Experiment 1 — Single-Instance Bottleneck**
 Measure:
 - latency
 - throughput
@@ -279,25 +281,17 @@ Measure:
 - CPU / memory behavior
 - queue backlog indicators
 
-**Experiment 2 — Limited Scaling / Constrained Load Behavior**
+**Experiment 2 — Bottleneck Shifting / Component Dependency**
+Focus on:
+- whether increasing web-side capacity pushes the bottleneck toward PostgreSQL
+- cache / Sidekiq / DB connection behavior under load
+- practical service dependency observations in the tiny deployment model
 
-Because we are no longer using ECS/Fargate autoscaling, this experiment focuses on:
-- system behavior under progressively higher load
-- resource saturation patterns
-- practical scaling limitations in the tiny deployment model
-
-**Federation Experiment (optional)**
-
-Condition: only proceed if both instances are stable enough by Checkpoint 2.
-
-Goal:
-- measure propagation latency from Instance A to Instance B
-- compare latency under idle / light / moderate load
-
-If federation is still unstable, this section becomes:
-- architecture explanation
-- expected propagation path
-- future work
+**Experiment 3 — Federation Validation / Simple Failure Test**
+Focus on:
+- cross-instance account discovery and interaction
+- propagation of posts / likes across instances
+- optional partial-outage test (temporary stop / restart of one instance) and catch-up behavior after recovery
 
 ---
 
@@ -319,9 +313,9 @@ If federation is still unstable, this section becomes:
 3. Week 1 Feasibility Investigation
 4. Pivot to Tiny Mastodon on EC2
 5. Experiment 1: Single-Instance Bottleneck
-6. Experiment 2: Constrained Load Behavior
-7. Experiment 3: Federation Under Load (if completed)
-8. Discussion: deployment tradeoffs, system bottlenecks, platform constraints
+6. Experiment 2: Bottleneck Shifting / Component Dependency
+7. Experiment 3: Federation Validation / Simple Failure Test
+8. Discussion: deployment tradeoffs, bottlenecks, cache / queue / dependency behavior
 9. Conclusion & Future Work
 
 ---
@@ -346,8 +340,10 @@ We will stop non-essential resources after each session.
 | :--- | :--- |
 | Deployment | EC2 + Docker Compose |
 | Compute | EC2 |
-| Database | RDS PostgreSQL |
-| Cache / Queue | Redis |
-| Monitoring | Basic AWS / system observation, screenshots, logs |
+| Web / App | Mastodon v4.5.7 |
+| Database | PostgreSQL 14 (Docker) |
+| Cache / Queue | Redis 7 + Sidekiq |
+| Reverse Proxy / HTTPS | Nginx + Let's Encrypt |
+| Monitoring | Basic AWS / system observation, Docker stats, screenshots, logs |
 | Load Testing | Locust (Python) |
 | Version Control | GitHub (mastodon-scaling-study) |
