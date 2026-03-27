@@ -76,7 +76,6 @@ mastodon-scaling-study/
 - [ ] Yehe: continue the component-dependency line, focusing on cache / Sidekiq queue / DB connection behavior
 - [ ] Run a small federation propagation / partial-outage test between Instance A and B
 - [ ] Consolidate both teammates' results into the final report
-- [ ] Record a short, 2 minute video capture walkthrough of your project's "elevator pitch" to get stakeholders interested
 - [ ] Prepare slides / presentation materials
 
 See [report/mastodon_plan.md](report/mastodon_plan.md) for the detailed project plan.
