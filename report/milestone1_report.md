@@ -78,12 +78,15 @@ This project connects directly to several core distributed systems themes from t
 
 Outside the course, Mastodon and ActivityPub documentation provide a useful background for understanding how posts, follows, and interactions propagate between independent servers. We also draw on practical system knowledge around Redis, Sidekiq, PostgreSQL, and reverse proxies in distributed web applications.
 
-We also identified three Piazza projects that are related to ours:
-- One project focused on scaling a distributed social or communication-style system under load, which is similar because it studies bottlenecks and user-facing latency, but different because our system includes federation across independently owned instances.
-- One project focused on system performance under constrained cloud deployment environments, which is similar because both projects had to adapt the design to fit real environment limitations, but different because our work emphasizes Mastodon’s queue/cache/federation interactions.
-- One project focused on failure handling or message delivery reliability in a distributed service, which is similar because it studies what happens when system components fall behind or fail, but different because our platform uses ActivityPub federation and asynchronous background jobs.
+We identified three related projects from the class:
 
-These related projects help position our work as part of a broader set of distributed systems studies, but our project is distinctive because it combines deployment constraints, single-instance stress behavior, and federation.
+**Distributed Music Streaming Simulation (Ananyaa Mylsamy & Manasha Sekar)** studies bottlenecks, concurrency limits, and horizontal scaling behavior using AWS ECS Fargate and Locust. This is similar to our project because both focus on identifying where performance breaks down under load and whether the system scales. The main difference is that their project is built around music streaming and QoS-specific metrics like rebuffering latency and adaptive bitrate switching, while ours focuses on Mastodon federation and cross-instance social interactions.
+
+**Pattern Learning & Crowd-Validated Content Generation (Sam Wu & Jingsi Zhang)** studies distributed backpressure, checkpoint-based failure recovery, and cache concurrency safety in an LLM processing pipeline. This is similar to our project because both study how distributed systems behave under load and partial failure — their backpressure and checkpoint recovery experiments parallel our interest in bottleneck identification and queue behavior. The main difference is that their system is an AI content pipeline with explicit fanout stages, while ours is a federated social network where background jobs and cross-instance delivery are the key distributed behaviors.
+
+**Letterboxd for Video Games (Nicholas Soares)** is a microservice backend that studies cascading failure resilience, consistency under heavy write load, and Redis caching tradeoffs over PostgreSQL. This is similar to our project because both use a Redis + PostgreSQL stack and study system behavior under load. The main difference is that his project focuses on microservice coordination and consistency within a single deployment, while ours focuses on federation across independently deployed Mastodon instances communicating through ActivityPub.
+
+These related projects help position our work within the broader set of distributed systems studies in the class. Our project is distinctive because it combines real deployment constraints, single-instance stress behavior, and cross-instance federation — all in a system that was not purpose-built for benchmarking, but is a real open-source application.
 
 ---
 
