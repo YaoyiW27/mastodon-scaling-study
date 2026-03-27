@@ -31,7 +31,6 @@ So far, the project focuses on:
 ## Current Status
 
 - The original CloudFormation / ECS deployment path was blocked by Learner Lab IAM and nested-stack limitations.
-- We pivoted to a **single EC2 + Docker Compose** deployment.
 - Both instances pivoted to **EC2 + Docker Compose** with Nginx + HTTPS via Let's Encrypt.
 - **Instance A** (Yaoyi): `a.mastodon-yaoyi.online` — t3.medium (4GB RAM) - anonymous read test, 0 failures up to 500 users.
 - **Instance B** (Yehe): `mastodon-yehe.click` — t3.large (8GB RAM) - authenticated API test, rate limiter at 20+ users.
