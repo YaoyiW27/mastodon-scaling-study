@@ -180,7 +180,7 @@ mastodon-scaling-study/
 
 ---
 
-## 	10. Mastodon Architecture Overview
+## 10. Mastodon Architecture Overview
 
 **Original target architecture**
 ```text
@@ -218,7 +218,7 @@ Docker Compose services
 
 ---
 
-## 	11. Week 1 (Mar 20–23): Deployment Validation + Smoke Test Preparation
+## 11. Week 1 (Mar 20–23): Deployment Validation + Smoke Test Preparation
 
 **Primary objective**
 
