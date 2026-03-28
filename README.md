@@ -26,6 +26,9 @@ So far, the project focuses on:
   <img src="assets/mastodon-study-architecture-v2.svg" alt="Mastodon Scaling Study Architecture" width="600">
 </p>
 
+## Video Pitch
+
+[![Watch the pitch](/assets/ytb_image.png)](https://youtu.be/8CD8hdcGNhc)
 ---
 
 ## Current Status
