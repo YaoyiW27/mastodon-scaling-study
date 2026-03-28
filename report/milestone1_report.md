@@ -9,14 +9,18 @@
 
 Our project studies how a federated social network behaves under load by using Mastodon as a real-world distributed systems case study. We chose Mastodon because it is not just a web application: it combines asynchronous workers, database and cache coordination, and cross-instance federation through ActivityPub. This makes it a good system for studying bottlenecks, internal component dependencies, and distributed behavior across independently deployed instances.
 
+Beyond its technical complexity, Mastodon embodies a fundamentally different philosophy of distribution. Unlike a centralized platform where a single company absorbs all load behind layers of engineered fault tolerance, Mastodon distributes responsibility — socially and physically — across independently operated nodes. Heavy requests are naturally spread among instances rather than funneled through one infrastructure owner. This means a single node going offline causes only localized disruption, and taking the network down entirely is structurally implausible. In this sense, Mastodon's resilience is not engineered into any one deployment; it emerges from decentralization itself.
+
+This also makes Mastodon a useful pedagogical subject. A single instance contains all the essential components of a modern social platform — a relational database, an in-memory cache, asynchronous job queues, a web frontend, and a federation protocol — while remaining small enough to deploy, instrument, and stress-test in a student environment. It is, in effect, a textbook template for understanding how social network infrastructure is built and where it breaks.
+
 This problem is important because future stakeholders who deploy social platforms, collaboration tools, or federated systems need to understand not only how a single service performs, but also how background jobs, caching, database coordination, and cross-instance communication affect performance and reliability. Mastodon gives us a realistic way to explore these tradeoffs.
 
 Our team is organized around two complementary technical directions. Yaoyi focuses on the single-instance performance path, especially load generation, latency analysis, and bottleneck identification on Instance A. Yehe focuses on backend and dependency-oriented behavior on Instance B, including queue, cache, and database-related observations. Federation experiments and final integration are shared between both teammates.
 
 At the current stage, our experiments are organized into three lines of investigation:
 
-1. **Single-instance bottleneck** — identify which component becomes the bottleneck first under load.  
-2. **Bottleneck shifting / component dependency** — observe whether changing web-side capacity or internal constraints pushes pressure toward PostgreSQL, Redis, Sidekiq, or connection limits.  
+1. **Single-instance bottleneck** — identify which component becomes the bottleneck first under load.
+2. **Bottleneck shifting / component dependency** — observe whether changing web-side capacity or internal constraints pushes pressure toward PostgreSQL, Redis, Sidekiq, or connection limits.
 3. **Federation validation / propagation behavior** — validate whether two independently deployed Mastodon instances can support a basic federated workflow and observe simple propagation or recovery behavior across instances.
 
 We used AI as a support tool throughout the project, mainly for deployment debugging ideas, experiment framing, and documentation refinement. The benefit was speed: AI helped us quickly generate alternative deployment paths, compare experiment options, and organize our observations into a clearer distributed-systems story.
@@ -76,7 +80,7 @@ A secondary objective of this project is to develop stronger engineering judgmen
 
 This project connects directly to several core distributed systems themes from the course: bottleneck identification, queueing and asynchronous work, failure and recovery, and cross-instance consistency behavior. Mastodon is a strong case study because it combines local service interactions with a distributed federation layer, making it more representative than a single centralized monolith.
 
-Outside the course, Mastodon and ActivityPub documentation provide a useful background for understanding how posts, follows, and interactions propagate between independent servers. We also draw on practical system knowledge around Redis, Sidekiq, PostgreSQL, and reverse proxies in distributed web applications.
+Outside the course, [Mastodon](https://docs.joinmastodon.org/admin/prerequisites/) and [ActivityPub](https://swicg.github.io/activitypub-webfinger/) documentation provide a useful background for understanding how posts, follows, and interactions propagate between independent servers. We also draw on practical system knowledge around Redis, Sidekiq, PostgreSQL, and reverse proxies in distributed web applications.
 
 We identified three related projects from the class:
 
@@ -108,6 +112,7 @@ AI is used in this methodology only as a support tool for planning and debugging
 Observability is supported by:
 - Locust charts and statistics;
 - Docker stats and container logs;
+- Sidekiq monitor dashboard;
 - curl-based health and endpoint checks;
 - Mastodon UI screenshots showing interaction or propagation outcomes.
 

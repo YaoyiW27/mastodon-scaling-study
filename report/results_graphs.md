@@ -94,8 +94,6 @@
 
 ![Yehe Mastodon up](../results/yehe/screenshots/yehe_mastodon.png)
 
-![Sidekiq monitor](../results/yehe/screenshots/sidekiq_monitor.png)
-
 ---
 
 ### Load Test Results
@@ -136,6 +134,14 @@ All failures: HTTP 429 Too Many Requests.
 | **Aggregated** | **8,990** | **7,212** | **80.2%** | **94ms** | **1,500ms** |
 
 All failures: HTTP 429 Too Many Requests.
+
+---
+### Sidekiq Monitor Result
+
+
+![Sidekiq monitor](../results/yehe/screenshots/sidekiq_monitor.png)
+
+Sidekiq metrics showed a peak during the 5-user test; in subsequent 20- and 50-user tests, the rate limiter intervened and prevented additional tasks from being enqueued.
 
 ---
 
