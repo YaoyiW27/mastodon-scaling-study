@@ -1,0 +1,5 @@
+Method,Name,Error,Occurrences
+GET,/api/v2/search,CatchResponseError('Got 429'),3
+GET,/api/v1/timelines/home,CatchResponseError('Got 429'),16
+POST,/api/v1/statuses [POST],"CatchResponseError('Got 429: {""error"":""Too many requests""}')",482
+GET,/api/v1/notifications,CatchResponseError('Got 429'),4
