@@ -1,0 +1,73 @@
+{
+  "widgets": [
+    {
+      "type": "metric",
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "EC2 CPU Utilization — Instance A (t3.medium)",
+        "metrics": [
+          ["AWS/EC2", "CPUUtilization", "InstanceId", "i-0ceab2d65fae13558", {"label": "Instance A CPU %", "color": "#2ca02c"}]
+        ],
+        "period": 60,
+        "stat": "Average",
+        "view": "timeSeries",
+        "region": "us-east-1",
+        "yAxis": {"left": {"min": 0, "max": 100}},
+        "annotations": {
+          "horizontal": [
+            {"value": 80, "label": "80% threshold", "color": "#d62728"}
+          ]
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Network In/Out — Instance A",
+        "metrics": [
+          ["AWS/EC2", "NetworkIn", "InstanceId", "i-0ceab2d65fae13558", {"label": "Network In", "color": "#1f77b4"}],
+          ["AWS/EC2", "NetworkOut", "InstanceId", "i-0ceab2d65fae13558", {"label": "Network Out", "color": "#ff7f0e"}]
+        ],
+        "period": 60,
+        "stat": "Average",
+        "view": "timeSeries",
+        "region": "us-east-1"
+      }
+    },
+    {
+      "type": "metric",
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Disk Read/Write Ops — Instance A",
+        "metrics": [
+          ["AWS/EC2", "DiskReadOps", "InstanceId", "i-0ceab2d65fae13558", {"label": "Disk Read Ops", "color": "#9467bd"}],
+          ["AWS/EC2", "DiskWriteOps", "InstanceId", "i-0ceab2d65fae13558", {"label": "Disk Write Ops", "color": "#8c564b"}]
+        ],
+        "period": 60,
+        "stat": "Average",
+        "view": "timeSeries",
+        "region": "us-east-1"
+      }
+    },
+    {
+      "type": "metric",
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "CPU Credit Balance — Instance A (t3.medium burst)",
+        "metrics": [
+          ["AWS/EC2", "CPUCreditBalance", "InstanceId", "i-0ceab2d65fae13558", {"label": "CPU Credits", "color": "#e377c2"}],
+          ["AWS/EC2", "CPUCreditUsage", "InstanceId", "i-0ceab2d65fae13558", {"label": "CPU Credit Usage", "color": "#7f7f7f"}]
+        ],
+        "period": 60,
+        "stat": "Average",
+        "view": "timeSeries",
+        "region": "us-east-1"
+      }
+    }
+  ]
+}

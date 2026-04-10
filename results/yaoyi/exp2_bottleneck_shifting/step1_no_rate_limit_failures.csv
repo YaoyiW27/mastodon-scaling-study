@@ -1,0 +1,12 @@
+Method,Name,Error,Occurrences
+POST,/api/v1/statuses/:id/favourite,HTTPError('403 Client Error: Forbidden for url: /api/v1/statuses/:id/favourite'),58
+GET,/api/v1/notifications,CatchResponseError('Got 403'),117
+POST,/api/v1/statuses [POST],"CatchResponseError('Got 403: {""error"":""Your login is currently pending approval""}')",155
+GET,/api/v2/search,CatchResponseError('Got 429'),30
+GET,/api/v1/timelines/public [fav sample],CatchResponseError('Got 429'),42
+GET,/api/v1/timelines/home,CatchResponseError('Got 403'),275
+POST,/api/v1/statuses/:id/favourite,HTTPError('429 Client Error: Too Many Requests for url: /api/v1/statuses/:id/favourite'),12
+GET,/api/v1/timelines/home,CatchResponseError('Got 429'),154
+POST,/api/v1/statuses [POST],"CatchResponseError('Got 429: {""error"":""Too many requests""}')",118
+GET,/api/v1/timelines/public,CatchResponseError('Got 429'),87
+GET,/api/v1/notifications,CatchResponseError('Got 429'),52
