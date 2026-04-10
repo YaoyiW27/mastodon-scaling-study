@@ -162,6 +162,31 @@ Federation validated after Instance A was upgraded to HTTPS + Nginx.
 
 ---
 
+## Experiment 3B — Federation Propagation Latency Under Load
+
+**Setup:** Instance A posts via ActivityPub → Instance B home timeline polling
+**Tool:** `locust/federation_test.py` | **Runs per condition:** 5
+
+### Raw Results
+
+| Load Condition | Locust Users on Instance B | Successful | Avg Latency | Min | Max | Timeouts |
+|---|---|---|---|---|---|---|
+| idle | 0 | 5/5 | 0.67s | 0.57s | 0.80s | 0 |
+| light_load | 20 | 5/5 | 6.53s | 0.84s | 28.73s | 0 |
+| moderate_load | 50 | 4/5 | 4.32s | 1.63s | 5.72s | 1 |
+
+![Idle latency terminal output](../results/yaoyi/screenshots/federation-experiment/federation_05_idle_latency_terminal.png)
+![Load latency terminal output](../results/yaoyi/screenshots/federation-experiment/federation_06_load_latency_terminal.png)
+
+### Key Findings
+
+- At idle, federation latency is stable and fast at an average of 0.67s, consistent across all 5 runs.
+- Under light load (20 users), average latency jumped to 6.53s driven by one spike of 28.73s on run 1. This outlier indicates Sidekiq on Instance B briefly queued incoming ActivityPub inbox jobs behind HTTP request processing, delaying federation delivery.
+- Under moderate load (50 users), latency stabilized around 4–6s but produced the first timeout (run 5), suggesting Sidekiq queue depth was growing faster than workers could drain it.
+- The pattern is consistent with Sidekiq worker starvation: when the web layer is under pressure, background workers compete for CPU, causing federation delivery to degrade non-linearly.
+
+---
+
 ## Deployment Pivot — CloudFormation Failure Evidence
 
 | Version | Failed Resource | Root Cause |
@@ -175,3 +200,4 @@ Federation validated after Instance A was upgraded to HTTPS + Nginx.
 ![Stack fail v3](../results/yaoyi/screenshots/stack-fail/stack-fail-2-1-v3.png)
 ![Stack fail v4](../results/yaoyi/screenshots/stack-fail/stack-fail-3-1-v4.png)
 ![Stack fail v5](../results/yaoyi/screenshots/stack-fail/stack-fail-4-1-v5.png)
+
