@@ -12,7 +12,6 @@
 |---|---|---|
 | Domain | `a.mastodon-yaoyi.online` | `mastodon-yehe.click` |
 | EC2 | t3.medium (2 vCPU, 4GB RAM) | t3.large (2 vCPU, 8GB RAM) |
-| Workload | Anonymous read-heavy | Authenticated API (read + write) |
 | Stack | EC2 + Docker Compose + Nginx + HTTPS | EC2 + Docker Compose + Nginx + HTTPS |
 
 ---
@@ -20,130 +19,75 @@
 ## Experiment 1 — Single Instance Bottleneck (Instance A, Yaoyi)
 
 **Workload:** Anonymous read traffic — `/`, `/about`, `/explore`, `/health`
-**Tool:** Locust
+**Tool:** Locust | **Instance:** t3.medium
 
-### Deployment — Instance Running
+### Deployment
 
 ![EC2 instance running](../results/yaoyi/screenshots/single-instance-experiment/1-EC2.png)
-
 ![Docker Compose services up](../results/yaoyi/screenshots/single-instance-experiment/3-docker-compose-start.png)
-
 ![Mastodon web UI](../results/yaoyi/screenshots/single-instance-experiment/6-mastodon-web.png)
-
----
 
 ### Load Test Results
 
-#### 5 Users
-
-![Locust 5 users](../results/yaoyi/screenshots/single-instance-experiment/7-locust-user5.png)
-
-#### 20 Users
-
-![Locust 20 users](../results/yaoyi/screenshots/single-instance-experiment/7-locust-user20.png)
-
-#### 50 Users
-
-![Locust 50 users](../results/yaoyi/screenshots/single-instance-experiment/7-locust-user50.png)
-
-#### 100 Users
-
-![Locust 100 users](../results/yaoyi/screenshots/single-instance-experiment/7-locust-user100.png)
-
-#### 200 Users
-
-![Locust 200 users](../results/yaoyi/screenshots/single-instance-experiment/7-locust-user200.png)
-
-#### 500 Users
-
-![Locust 500 users](../results/yaoyi/screenshots/single-instance-experiment/7-locust-user500.png)
-
----
-
-### Summary Table
-
 | Load Level | Avg Latency (ms) | P95 (ms) | P99 (ms) | RPS | Failures |
 |-----------|------------------:|---------:|---------:|----:|---------:|
-| 5 users | 173 | 220 | 290 | 2.2 | 0 (0%) |
-| 20 users | 170 | 200 | 290 | 9.4 | 0 (0%) |
-| 50 users | 185 | 240 | 670 | 22.8 | 0 (0%) |
-| 100 users | 179 | 220 | 370 | 46.6 | 0 (0%) |
-| 200 users | 225 | 390 | 690 | 91.2 | 0 (0%) |
-| 500 users | 2344 | 2900 | 3400 | 112.9 | 0 (0%) |
+| 5 users | 173 | 220 | 290 | 2.2 | 0% |
+| 20 users | 170 | 200 | 290 | 9.4 | 0% |
+| 50 users | 185 | 240 | 670 | 22.8 | 0% |
+| 100 users | 179 | 220 | 370 | 46.6 | 0% |
+| 200 users | 225 | 390 | 690 | 91.2 | 0% |
+| 500 users | 2,344 | 2,900 | 3,400 | 112.9 | 0% |
 
-**Key finding:** Zero failures at all load levels. Throughput grew steadily up to 200 users, then plateaued at 500 users while latency increased sharply (225ms → 2344ms avg), indicating the instance approached saturation around 200–500 users. Web container showed the highest CPU usage under load.
+![Locust 5 users](../results/yaoyi/screenshots/single-instance-experiment/7-locust-user5.png)
+![Locust 20 users](../results/yaoyi/screenshots/single-instance-experiment/7-locust-user20.png)
+![Locust 50 users](../results/yaoyi/screenshots/single-instance-experiment/7-locust-user50.png)
+![Locust 100 users](../results/yaoyi/screenshots/single-instance-experiment/7-locust-user100.png)
+![Locust 200 users](../results/yaoyi/screenshots/single-instance-experiment/7-locust-user200.png)
+![Locust 500 users](../results/yaoyi/screenshots/single-instance-experiment/7-locust-user500.png)
 
----
+**Key finding:** Zero failures at all load levels. Throughput plateaued at 500 users while latency jumped from 225ms to 2,344ms avg. Web container showed highest CPU usage; PostgreSQL and Redis remained lightly loaded.
 
-### Docker Stats Under Load
-
-![Docker stats 5–500 users](../results/yaoyi/screenshots/single-instance-experiment/7-docker-stats-user5-500.png)
-
-### CloudWatch CPU
-
+![Docker stats](../results/yaoyi/screenshots/single-instance-experiment/7-docker-stats-user5-500.png)
 ![CloudWatch CPU](../results/yaoyi/screenshots/single-instance-experiment/8-cloudwatch.png)
 
 ---
 
-## Experiment 2 — Authenticated API Load Test + Rate Limiter Behavior (Instance B, Yehe)
+## Experiment 1B — Authenticated Load + Rate Limiter (Instance B, Yehe)
 
 **Workload:** Authenticated API — POST status (3x), GET home timeline (5x), GET public timeline (3x), GET notifications (2x), favourite (1x), search (1x)
-**Tool:** Locust
+**Tool:** Locust | **Instance:** t3.large
 
-### Instance Running
+![Yehe instance running](../results/yehe/screenshots/yehe_mastodon.png)
+![Sidekiq monitor](../results/yehe/screenshots/sidekiq_monitor.png)
 
-![Yehe Mastodon up](../results/yehe/screenshots/yehe_mastodon.png)
-
----
-
-### Load Test Results
-
-#### Smoke Test — 5 Users, 60s
+### Smoke Test — 5 Users, 60s
 
 | Endpoint | Requests | Failures | p50 | p95 | p99 | RPS |
 |---|---|---|---|---|---|---|
-| POST /api/v1/statuses | 77 | 0 (0%) | 95ms | 150ms | 310ms | 1.30 |
-| GET /timelines/home | 67 | 0 (0%) | 180ms | 280ms | 410ms | 1.14 |
-| GET /timelines/public | 22 | 0 (0%) | 170ms | 210ms | 370ms | 0.37 |
-| GET /notifications | 22 | 0 (0%) | 110ms | 190ms | 240ms | 0.37 |
-| GET /api/v2/search | 11 | 0 (0%) | 62ms | 180ms | 180ms | 0.19 |
-| **Aggregated** | **213** | **0 (0%)** | **130ms** | **230ms** | **310ms** | **3.61** |
+| POST /api/v1/statuses | 77 | 0% | 95ms | 150ms | 310ms | 1.30 |
+| GET /timelines/home | 67 | 0% | 180ms | 280ms | 410ms | 1.14 |
+| GET /timelines/public | 22 | 0% | 170ms | 210ms | 370ms | 0.37 |
+| GET /notifications | 22 | 0% | 110ms | 190ms | 240ms | 0.37 |
+| **Aggregated** | **213** | **0%** | **130ms** | **230ms** | **310ms** | **3.61** |
 
-#### Baseline — 20 Users, 300s
+### Baseline — 20 Users, 300s
 
-| Endpoint | Requests | Failures | Failure % | p50 | p95 | p99 | RPS |
-|---|---|---|---|---|---|---|---|
-| POST /api/v1/statuses | 1,383 | 834 | 60.3% | 82ms | 400ms | 670ms | 4.62 |
-| GET /timelines/home | 1,153 | 668 | 57.9% | 100ms | 470ms | 790ms | 3.85 |
-| GET /timelines/public | 591 | 280 | 47.4% | 170ms | 430ms | 700ms | 1.97 |
-| GET /notifications | 404 | 215 | 53.2% | 110ms | 570ms | 970ms | 1.35 |
-| GET /api/v2/search | 184 | 103 | 56.0% | 61ms | 200ms | 310ms | 0.61 |
-| **Aggregated** | **4,041** | **2,226** | **55.1%** | **94ms** | **440ms** | **740ms** | **13.49** |
+| Endpoint | Requests | Failures | Failure % | p50 | p95 | RPS |
+|---|---|---|---|---|---|---|
+| POST /api/v1/statuses | 1,383 | 834 | 60.3% | 82ms | 400ms | 4.62 |
+| GET /timelines/home | 1,153 | 668 | 57.9% | 100ms | 470ms | 3.85 |
+| GET /timelines/public | 591 | 280 | 47.4% | 170ms | 430ms | 1.97 |
+| **Aggregated** | **4,041** | **2,226** | **55.1%** | **94ms** | **440ms** | **13.49** |
 
 All failures: HTTP 429 Too Many Requests.
 
-#### Stress Test — 50 Users, 300s
+### Stress Test — 50 Users, 300s
 
 | Endpoint | Requests | Failures | Failure % | p50 | p95 |
 |---|---|---|---|---|---|
 | POST /api/v1/statuses | 3,129 | 3,029 | 96.8% | 92ms | 1,300ms |
 | GET /timelines/home | 2,669 | 2,011 | 75.3% | 91ms | 1,700ms |
-| GET /timelines/public | 1,276 | 819 | 64.2% | 100ms | 1,500ms |
-| GET /notifications | 853 | 663 | 77.7% | 89ms | 1,900ms |
-| GET /api/v2/search | 474 | 344 | 72.6% | 96ms | 1,200ms |
 | **Aggregated** | **8,990** | **7,212** | **80.2%** | **94ms** | **1,500ms** |
-
-All failures: HTTP 429 Too Many Requests.
-
----
-### Sidekiq Monitor Result
-
-
-![Sidekiq monitor](../results/yehe/screenshots/sidekiq_monitor.png)
-
-Sidekiq metrics showed a peak during the 5-user test; in subsequent 20- and 50-user tests, the rate limiter intervened and prevented additional tasks from being enqueued.
-
----
 
 ### EC2 CPU During Load Tests
 
@@ -151,83 +95,83 @@ Sidekiq metrics showed a peak during the 5-user test; in subsequent 20- and 50-u
 
 | Test | EC2 CPU Peak | Web Container CPU | DB CPU | Sidekiq |
 |---|---|---|---|---|
-| 5 users (smoke) | ~5% | normal | normal | processing |
-| 20 users (baseline) | 35.9% | elevated | 11% | processing |
-| 50 users (stress) | ~26% | 177% (1 core) | 11% | idle |
+| 5 users | ~5% | normal | normal | processing |
+| 20 users | 35.9% | elevated | 11% | processing |
+| 50 users | ~26% | 177% (1 core) | 11% | idle |
+
+**Key findings:** Rate limiter activates at 20 users before hardware saturation. Web CPU hit 177% while DB stayed at 11%. Sidekiq starved — no successful POSTs = no jobs enqueued.
 
 ---
 
-### Load Test Progression Summary
+## Experiment 2 — Bottleneck Shifting (Both Instances)
 
-| Load Level | Error Rate | p50 | p95 | RPS | Bottleneck |
-|---|---|---|---|---|---|
-| 5 users (smoke) | 0% | 130ms | 230ms | 3.6 | None |
-| 20 users (baseline) | 55.1% | 94ms | 440ms | 13.5 | Rate limiter begins |
-| 50 users (stress) | 80.2% | 94ms | 1,500ms | 30.0 | Rate limiter + web CPU 177% |
+### Instance B (t3.large) — Yehe
 
-**Key findings:**
-- Rate limiter (`rack-attack`) activates before hardware saturation — 429s appear at 20 users
-- Web container hit 177% CPU (one full core) at 50 users while DB stayed at 11%
-- Sidekiq starved: no successful POST = no jobs enqueued = Sidekiq idle
-- p50 latency improved at 50 users (130ms → 94ms) because instant 429 rejections pulled the median down
-- **Next step:** disable rate limiting (`RACK_ATTACK_ENABLED=false`) to find true hardware saturation point
+| Step | Change | RPS | Failure Rate | Key Finding |
+|------|--------|-----|--------------|-------------|
+| Baseline | Default | 13.5 | 55% | rack-attack throttling |
+| Step 1 | No rate limit | 12.8 | 33% | Puma exposed, web CPU 138% |
+| Step 2 | WC=4 | 9.2 | **0%** | Sweet spot — zero failures |
+| Step 3 | WC=6 | 12.5 | 33% | Context switching overhead |
+| Step 4 | Nginx cache | ~13 | ~7% | 5× public timeline improvement |
+
+Redis cache hit rate: **84%** — PostgreSQL was never the bottleneck.
+
+### Instance A (t3.medium) — Yaoyi
+
+| Step | Change | RPS | Failure Rate | Key Finding |
+|------|--------|-----|--------------|-------------|
+| Step 0 | Default | 9.3 | 41.6% | 429 rate limiting, web CPU 58% |
+| Step 2 | WC=4 | 9.2 | 42.7% | **502 Bad Gateway appears** |
+
+![CloudWatch all steps — Instance A](../results/yaoyi/screenshots/exp2_bottleneck_shifting/exp2_cloudwatch_all_steps.png)
+
+### Vertical Scaling Comparison
+
+| Metric | Instance A (t3.medium) | Instance B (t3.large) |
+|--------|----------------------|----------------------|
+| Default failure rate (20u) | 41.6% | 55.1% |
+| Default p95 | 300ms | 440ms |
+| Default RPS | 9.3 | 13.5 |
+| WC=4 failure rate | **42.7%** (worse) | **0%** (eliminated) |
+| WC=4 p99 | 1,500ms | 530ms |
+| WC=4 502 errors | Yes | No |
+| Optimal WEB_CONCURRENCY | 2 | 4 |
+
+**Key finding:** Instance size is a binding constraint for worker scaling. t3.medium cannot absorb WC=4 under load; t3.large handles it cleanly with zero failures.
 
 ---
 
 ## Experiment 3 — Federation Validation (Instance A ↔ Instance B)
 
-Federation was validated after Instance A was upgraded to HTTPS + Nginx (Let's Encrypt).
-
-### Federation Checks
+Federation validated after Instance A was upgraded to HTTPS + Nginx.
 
 | Check | Result |
 |---|---|
-| Remote account discovery (`@admin@mastodon-yehe.click` from Instance A) | ✅ Success |
-| Mutual follow between instances | ✅ Success |
-| Remote public post visible on home timeline | ✅ Success |
-| Remote like / favorite notification received | ✅ Success |
-
-### Screenshots
-
-#### Mutual Follow
+| Remote account discovery | ✅ |
+| Mutual follow | ✅ |
+| Remote post visible on home timeline | ✅ |
+| Remote like notification received | ✅ |
 
 ![Mutual follow](../results/yaoyi/screenshots/federation-experiment/federation_01_mutual_follow.png)
-
-#### Remote Profile Visible
-
 ![Remote profile visible](../results/yaoyi/screenshots/federation-experiment/federation_02_profile_visible.png)
-
-#### Remote Post Visible
-
 ![Remote post visible](../results/yaoyi/screenshots/federation-experiment/federation_03_remote_post_visible.png)
-
-#### Remote Like Notification
-
 ![Remote like notification](../results/yaoyi/screenshots/federation-experiment/federation_04_remote_like_notification.png)
 
----
-
-**Key finding:** Federation required HTTPS + Nginx — direct HTTP on port 3000 was insufficient for WebFinger / ActivityPub discoverability. Once both instances were production-configured, all four federation checks passed. Quantitative propagation latency measurement is a next step.
+**Key finding:** Federation required HTTPS + Nginx. Direct HTTP on port 3000 broke WebFinger / ActivityPub discoverability.
 
 ---
 
 ## Deployment Pivot — CloudFormation Failure Evidence
 
-The original deployment path (CloudFormation + ECS Fargate) was abandoned after 5 failed attempts due to Learner Lab IAM restrictions.
-
-| Template Version | Failed Resource | Root Cause |
-|---|---|---|
-| v1 | `EmailIdentity`, `LambdaRole` | SES + IAM role creation blocked |
+| Version | Failed Resource | Root Cause |
+|---------|----------------|------------|
+| v1 | `EmailIdentity`, `LambdaRole` | SES + IAM blocked |
 | v2 | `BucketPolicyPublic` | S3 Block Public Access |
-| v3/v4 | `FlowLogModule` | VPC flow logs require IAM role creation |
-| v5 | `TaskRole` / `TaskExecutionRole` | ECS task IAM roles fundamentally blocked |
-
-### Stack Failure Screenshots
+| v3/v4 | `FlowLogModule` | VPC flow logs require IAM |
+| v5 | `TaskRole` / `TaskExecutionRole` | ECS task IAM fundamentally blocked |
 
 ![Stack fail v2](../results/yaoyi/screenshots/stack-fail/stack-fail-1-2-v2.png)
-
 ![Stack fail v3](../results/yaoyi/screenshots/stack-fail/stack-fail-2-1-v3.png)
-
 ![Stack fail v4](../results/yaoyi/screenshots/stack-fail/stack-fail-3-1-v4.png)
-
 ![Stack fail v5](../results/yaoyi/screenshots/stack-fail/stack-fail-4-1-v5.png)
