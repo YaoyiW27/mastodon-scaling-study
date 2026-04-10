@@ -144,17 +144,25 @@ Instance size is a binding constraint for Mastodon's worker scaling. The t3.medi
 
 ---
 
-## 5. Federation Validation (Previously Reported)
+## 5. Federation Validation and Propagation Latency
 
 Both instances successfully federated via ActivityPub after HTTPS + Nginx was configured. All four checks passed: remote account discovery, mutual follow, remote post visibility, and remote like notification.
 
 Key finding: federation required HTTPS + Nginx. Direct HTTP on port 3000 broke WebFinger discovery regardless of application configuration.
 
+After completing the validation checks, we ran an initial idle-condition propagation latency measurement using `federation_test.py`. This script posts a uniquely marked status on Instance A and polls Instance B's home timeline until the post appears, recording the end-to-end delivery time.
+
+| Condition | Successful | Avg | Min | Max |
+|-----------|-----------|-----|-----|-----|
+| idle | 5/5 | 0.67s | 0.57s | 0.80s |
+
+Under idle conditions, cross-instance delivery was fast and consistent. Full latency measurements under load are deferred to Milestone 3.
+
 ---
 
 ## 6. What Remains
 
-- **Federation propagation latency test** — measure cross-instance delivery latency under idle, light, and moderate load conditions
+- **Federation propagation latency under load** — measure delivery latency at 20 and 50 concurrent users on Instance B
 - **Final report** — integrate all experiment results
 - **Presentation** — Apr 13 or April 20
 

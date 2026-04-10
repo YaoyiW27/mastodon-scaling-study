@@ -131,11 +131,9 @@ def run_federation_test(n_runs=10, load_label="idle"):
 
 
 if __name__ == "__main__":
-    # Run under idle conditions first
-    # Then run while Locust is applying load on both instances
-
-    # Idle test
-    run_federation_test(n_runs=5, load_label="idle")
+    run_federation_test(n_runs=5, load_label="light_load")
+    input("\nPress Enter when Locust is ramped up to 50 users...")
+    run_federation_test(n_runs=5, load_label="moderate_load")
 
     # After running Locust at 20 users on both instances, run:
     # run_federation_test(n_runs=5, load_label="light_load")
