@@ -1,0 +1,6 @@
+Method,Name,Error,Occurrences
+GET,/api/v2/search,CatchResponseError('Got 429'),87
+POST,/api/v1/statuses/:id/favourite,HTTPError('429 Client Error: Too Many Requests for url: /api/v1/statuses/:id/favourite'),92
+GET,/api/v1/timelines/home,CatchResponseError('Got 429'),520
+POST,/api/v1/statuses [POST],"CatchResponseError('Got 429: {""error"":""Too many requests""}')",722
+GET,/api/v1/notifications,CatchResponseError('Got 429'),142

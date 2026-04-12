@@ -1,0 +1,8 @@
+Method,Name,Error,Occurrences
+GET,/api/v1/timelines/home,CatchResponseError('Got 500'),841
+GET,/api/v1/notifications,CatchResponseError('Got 500'),282
+GET,/api/v1/timelines/public,CatchResponseError('Got 500'),403
+POST,/api/v1/statuses [POST],"CatchResponseError(""Got 500: <!DOCTYPE html>\n<html lang='en'>\n<head>\n<meta content='text/html; charset=UTF-8' http-equiv='Content"")",716
+GET,/api/v1/timelines/public [fav sample],CatchResponseError('Got 500'),147
+GET,/api/v2/search,CatchResponseError('Got 500'),143
+POST,/api/v1/statuses/:id/favourite,HTTPError('500 Server Error: Internal Server Error for url: /api/v1/statuses/:id/favourite'),3
