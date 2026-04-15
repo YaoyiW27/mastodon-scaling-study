@@ -1,0 +1,7 @@
+Method,Name,Error,Occurrences
+POST,/api/v1/statuses/:id/favourite,HTTPError('422 Client Error: Unprocessable Content for url: /api/v1/statuses/:id/favourite'),2
+GET,/api/v2/search,CatchResponseError('Got 429'),6
+POST,/api/v1/statuses/:id/favourite,HTTPError('429 Client Error: Too Many Requests for url: /api/v1/statuses/:id/favourite'),3
+GET,/api/v1/timelines/home,CatchResponseError('Got 429'),47
+POST,/api/v1/statuses [POST],"CatchResponseError('Got 429: {""error"":""Too many requests""}')",321
+GET,/api/v1/notifications,CatchResponseError('Got 429'),7

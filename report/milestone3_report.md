@@ -11,9 +11,10 @@ At Milestone 2, both instances had completed the bottleneck-shifting experiments
 
 Completed since Milestone 2:
 - Federation propagation latency test under idle, light load (20 users), and moderate load (50 users) conditions
+- Extended federation test: Puma tuning, Locust verification, PostgreSQL connection investigation, and direct Sidekiq stress test
 - Full `federation_latency.csv` dataset collected
 - Component dependency isolation experiments (Sidekiq stopped, Redis stopped, Redis cache disabled)
-- Results and graphs document updated with Experiment 3B and Experiment 4 sections
+- Results and graphs document updated with Experiment 3B, Experiment 3C, and Experiment 4 sections
 - README status table updated to reflect all experiments complete
 
 ---
@@ -63,7 +64,171 @@ The t3.large instance (Instance B) with its default Sidekiq configuration was ab
 
 ---
 
-## 3. Experiment 4 — Component Dependency Isolation
+## 3. Experiment 3C — Extended Federation Stress Test (Instance A Under Load)
+
+### Motivation
+
+Experiment 3B measured federation latency by loading the **receiving** instance (Instance B). This extended experiment reverses the direction: load is applied to the **sending** instance (Instance A) using a combined test script that starts Locust in the background and measures federation propagation at each load stage. The goal is to understand whether the sending instance's ability to deliver ActivityPub payloads degrades under increasing concurrent user load, and to identify which component — Puma, Sidekiq, or PostgreSQL — is the binding constraint.
+
+### Setup
+
+- **Instance A** (`mastodon-yehe.click`, t2.large, 2 vCPU, 8GB RAM): both the posting instance and the Locust target
+- **Instance B** (`a.mastodon-yaoyi.online`): the observer, polled for post arrival
+- **Tool:** `locust/combined_fed_test.py` with background Locust process
+- **Locust profile:** `MastodonUser` (mixed read/write workload: 5 home timeline, 3 public timeline, 2 notifications, 1 post, 1 favourite, 1 search — weights out of 13)
+- **Puma config:** WEB_CONCURRENCY=4, MAX_THREADS=5 (baseline), later tuned to MAX_THREADS=10
+- **Timeout:** 60 seconds per run (later increased to 30 seconds on HTTP request timeout)
+- **Runs per condition:** 5
+
+### Phase 1 — Initial Test (Locust Silently Failing)
+
+The first series of runs appeared successful with flat latency across all stages:
+
+| Stage | Users | Success | Avg Latency | Min | Max |
+|---|---|---|---|---|---|
+| idle | 0 | 5/5 | 0.76s | 0.28s | 1.07s |
+| light | 20 | 5/5 | 1.13s | 1.07s | 1.22s |
+| moderate | 50 | 5/5 | 1.12s | 1.02s | 1.31s |
+| heavy | 100 | 5/5 | 0.95s | 0.45s | 1.13s |
+
+However, investigation revealed that **Locust was not actually running during any of these tests.** The combined script invoked Locust via `sys.executable -m locust`, but the `locust` package was not installed in the base conda environment. With both stdout and stderr redirected to `/dev/null`, the crash was completely silent. No `locust_*users_stats.csv` files were produced.
+
+**Lesson learned:** Always verify background processes are alive. The fix was twofold: (1) invoke `locust` directly instead of `python -m locust`, and (2) redirect Locust output to log files instead of `/dev/null` to surface errors.
+
+### Phase 2 — Locust Running, Timeouts at 150+ Users
+
+After fixing the Locust invocation, the test was re-run with load stages up to 200 users. Results at 150 and 200 users timed out:
+
+```
+STAGE: SEMI-HEAVY (150 users)
+→ ERROR: HTTPSConnectionPool(host='mastodon-yehe.click', port=443):
+  Read timed out. (read timeout=10)
+```
+
+The error was not a federation timeout — it was the test script's own `POST /api/v1/statuses` request failing to reach Puma within 10 seconds. With 20 Puma threads (WEB_CONCURRENCY=4, MAX_THREADS=5) handling 150 concurrent Locust users, all threads were occupied, and the federation test script's HTTP request queued behind Locust traffic in the TCP backlog.
+
+**Tuning attempt:** Increased MAX_THREADS from 5 to 10, giving 40 Puma threads. Result: same timeout at 150 users. The t2.large's 2 vCPUs could not context-switch fast enough to serve 40 threads under heavy load.
+
+**Workaround:** Increased the federation test script's HTTP request timeout from 10s to 30s. This allowed the POST request to wait in Puma's queue long enough for a thread to free up.
+
+### Phase 3 — Federation Latency Under Verified Load
+
+With the increased timeout, all stages completed successfully:
+
+| Stage | Users | Success | Avg Latency | Min | Max |
+|---|---|---|---|---|---|
+| heavy | 100 | 5/5 | 0.28s | 0.25s | 0.37s |
+| semi-heavy | 150 | 5/5 | 0.30s | 0.27s | 0.41s |
+| super-heavy | 200 | 5/5 | 0.29s | 0.26s | 0.38s |
+
+Federation latency remained flat at ~0.3s across all load stages. The Sidekiq dashboard confirmed 0 enqueued jobs throughout all tests.
+
+**Locust stats at 200 users** revealed where the actual stress was occurring:
+
+| Endpoint | Requests | Failures | Median Latency |
+|---|---|---|---|
+| GET /timelines/public | 295 | 0 | 95ms |
+| GET /timelines/home | 507 | 0 | 9,700ms |
+| GET /notifications | 178 | 0 | 12,000ms |
+| POST /statuses | 355 | 355 (100%) | 7,700ms |
+| GET /search | 86 | 0 | 7,600ms |
+
+All authenticated endpoints experienced multi-second latencies. POST /statuses had a **100% failure rate** — every Locust write request failed. Since Locust writes never succeeded, they never generated Sidekiq federation jobs. The Sidekiq queue stayed at 0 not because federation was resilient, but because no federation work was being created.
+
+### Phase 4 — PostgreSQL Connection Exhaustion
+
+After the 200-user test, attempting to open a Rails console on the server produced:
+
+```
+FATAL: sorry, too many clients already
+```
+
+PostgreSQL had exhausted its `max_connections` limit. Checking connection count after a restart showed the baseline was only 7 connections (Puma + Sidekiq), confirming that the 200-user test had leaked connections that were never released after failed requests.
+
+This revealed the actual bottleneck chain during high-load tests:
+
+1. **Locust floods Puma** with 200 concurrent users
+2. **Puma threads grab PostgreSQL connections** for each request
+3. **Failed or slow requests hold connections** without releasing them cleanly
+4. **PostgreSQL hits max_connections** (~100 default)
+5. **New requests cannot get a database connection** → cascade failure
+6. **Connections leak** — even after the test ends, connections remain held
+
+The bottleneck was not Puma thread count alone — it was PostgreSQL connection exhaustion caused by connection leaking under sustained overload.
+
+### Phase 5 — Direct Sidekiq Stress Test via Rails Console
+
+To bypass the Puma bottleneck entirely and stress-test the federation delivery pipeline directly, 500 posts were created via the Rails console:
+
+```ruby
+account = Account.find_local('testuser1')
+500.times do |i|
+  PostStatusService.new.call(account, text: "flood #{i} #{Time.now.to_i}")
+end
+```
+
+This bypassed Puma and injected federation delivery jobs directly into Sidekiq. Results:
+
+- PostgreSQL connections jumped from 7 to 81
+- Sidekiq processed all jobs with **0 enqueued** at any point — queue depth never exceeded 0
+- `ActivityPub::DistributionWorker` average execution time: 0.08 seconds
+- Sidekiq dashboard showed 1 Busy, 0 Enqueued throughout the flood
+
+Even with 500 rapid-fire posts generating federation delivery jobs, Sidekiq processed them faster than they arrived. With ~5 Sidekiq threads at 0.08s per job, throughput was approximately 60 jobs/second — far exceeding the arrival rate.
+
+### Analysis
+
+This extended experiment reveals a layered bottleneck architecture where each component can only become the bottleneck once the layer above it is scaled past its limit:
+
+```
+Layer 1: Puma (HTTP entry point)
+  → Saturates first: all requests must pass through Puma
+  → At 150+ users on t2.large, TCP queue backs up
+
+Layer 2: PostgreSQL connections
+  → Saturates second: each Puma thread holds a DB connection
+  → Under sustained overload, connections leak and exhaust max_connections
+  → Even after load stops, leaked connections persist until restart
+
+Layer 3: Sidekiq (async federation delivery)
+  → Never reached saturation in any test
+  → Processes jobs at ~60/second, far exceeding arrival rates
+  → Queue depth remained at 0 even under direct flooding via Rails console
+```
+
+The key insight is that **Sidekiq federation delivery cannot be stressed through normal HTTP traffic on a single-node deployment**, because Puma and PostgreSQL will always fail first. Locust writes fail at the HTTP layer, so they never create Sidekiq jobs. This creates a paradox: the system appears to have resilient federation, but only because the bottleneck upstream prevents enough work from reaching the federation layer.
+
+### Comparison with Experiment 3B
+
+Experiment 3B (loading the receiving instance) and Experiment 3C (loading the sending instance) stress different parts of the federation pipeline and produce different results:
+
+| | 3B (Receiver Under Load) | 3C (Sender Under Load) |
+|---|---|---|
+| Load target | Instance B (receiver) | Instance A (sender) |
+| Federation latency | Degraded to 6.53s avg, timeouts at 50 users | Flat at ~0.3s up to 200 users |
+| Sidekiq queue | Backed up under load | Never backed up |
+| Primary bottleneck | CPU contention between Puma and Sidekiq | Puma thread saturation → PostgreSQL connection exhaustion |
+| Failure mode | Gradual degradation | Cliff — works until Puma queue overflows |
+
+The asymmetry is explained by what happens after the post is created. On the **sending** side, creating the post is a single Puma request followed by a fast Sidekiq job. On the **receiving** side, the incoming ActivityPub delivery must be processed by Sidekiq, which competes with Puma for CPU. When the receiver is under load, Sidekiq is starved; when the sender is under load, Sidekiq is unaffected because the bottleneck is upstream at Puma.
+
+### Implications for Production Federation
+
+These findings have direct implications for how federated Mastodon instances should be scaled:
+
+1. **Puma is always the first bottleneck** on a single-node deployment. Scaling federation delivery (more Sidekiq threads) is ineffective unless Puma can handle enough requests to generate federation work.
+
+2. **PostgreSQL connection management is critical under sustained load.** Connection leaking under overload is a failure mode that persists after the load subsides, requiring a restart to recover. Connection pooling (e.g., PgBouncer) would mitigate this.
+
+3. **Sidekiq federation delivery is inherently resilient** — on the sending side, each delivery job is fast (~0.08s) and the queue never backs up even under direct flooding. The federation degradation observed in Experiment 3B is a receiving-side problem, not a sending-side problem.
+
+4. **Scaling the sending instance requires scaling Puma horizontally** (more workers, more instances behind a load balancer) so that write requests succeed and generate federation jobs. Scaling Sidekiq on the sender provides no benefit until Puma is no longer the bottleneck.
+
+5. **Scaling the receiving instance requires separating Sidekiq from Puma** onto dedicated infrastructure so that incoming federation deliveries are not starved by local web traffic.
+
+---
+
+## 4. Experiment 4 — Component Dependency Isolation
 
 ### Overview
 
@@ -261,7 +426,7 @@ Unlike the hard failure (Redis) or silent degradation (Sidekiq stopped) patterns
 
 ---
 
-## 4. Complete Experiment Summary
+## 5. Complete Experiment Summary
 
 | Experiment | Instance | Key Finding |
 |---|---|---|
@@ -270,16 +435,33 @@ Unlike the hard failure (Redis) or silent degradation (Sidekiq stopped) patterns
 | 2A — bottleneck shifting | B (t3.large) | WC=4 eliminates failures; WC=6 overshoots; nginx cache gives 5× public timeline improvement |
 | 2B — bottleneck shifting | A (t3.medium) | WC=4 causes 502 errors; t3.medium cannot absorb additional workers under load |
 | 3A — federation validation | A ↔ B | All four ActivityPub checks passed; HTTPS + Nginx required for WebFinger discovery |
-| 3B — federation latency under load | A → B | Idle: 0.67s avg; light load: 6.53s avg with 28.73s spike; moderate load: 4.32s avg with 1 timeout |
+| 3B — federation latency under load (receiver) | A → B | Idle: 0.67s avg; light load: 6.53s avg with 28.73s spike; moderate load: 4.32s avg with 1 timeout |
+| 3C — federation latency under load (sender) | A ← B | Federation latency flat at ~0.3s up to 200 users; Puma and PostgreSQL connections are the bottleneck, not Sidekiq; direct Sidekiq flooding via Rails console shows 0 queue depth |
 | 4 — component dependency isolation | B (t3.large) | Sidekiq: silent degradation; Redis: immediate hard failure; Cache disabled: personalized endpoints break; Write-heavy u=50: Sidekiq queue backs up, notification latency 2100ms |
 
 ---
 
-## 5. Discussion
+## 6. Discussion
 
 ### Bottleneck progression
 
-Across all experiments, the bottleneck in Mastodon follows a consistent pattern. The web layer saturates first, either through rate limiting or Puma worker exhaustion. The database is never the bottleneck in our experiments — PostgreSQL active connections stayed at 2–3 throughout all steps, with Redis absorbing 84% of reads. Sidekiq becomes a bottleneck only indirectly, through CPU contention with web workers rather than through queue depth alone.
+Across all experiments, the bottleneck in Mastodon follows a consistent layered pattern. The web layer (Puma) saturates first, either through rate limiting or thread exhaustion. PostgreSQL connection exhaustion emerges as a secondary bottleneck under sustained overload, with leaked connections persisting even after load subsides. Sidekiq becomes a bottleneck only in two scenarios: (1) indirectly through CPU contention with web workers on the receiving instance (Experiment 3B), or (2) under sustained write-heavy load (Experiment 4, Test 4). On the sending side, Sidekiq federation delivery never saturated in any test — including direct flooding of 500 posts via Rails console.
+
+The bottleneck progression on a single-node deployment follows a strict ordering:
+
+```
+Puma thread saturation
+  ↓ (scale Puma)
+PostgreSQL connection exhaustion
+  ↓ (add connection pooling, increase max_connections)
+Sidekiq CPU starvation (receiving instance)
+  ↓ (separate Sidekiq onto dedicated infrastructure)
+Sidekiq queue depth growth (sending instance)
+  ↓ (add Sidekiq workers)
+PostgreSQL write throughput
+```
+
+Each layer can only become the bottleneck once the layer above it has been scaled past its limit.
 
 ### Deliberate DB protection
 
@@ -297,15 +479,23 @@ Redis cache       ← absorbs 84% of reads
 PostgreSQL        ← sees only ~16% of traffic, mostly writes
 ```
 
-This design treats PostgreSQL as a precious resource to be protected rather than a workhorse to be scaled. The consequence observed across all experiments is that DB saturation cannot be reached on a single node — the web CPU ceiling is always hit first.
+This design treats PostgreSQL as a precious resource to be protected rather than a workhorse to be scaled. The consequence observed across all experiments is that DB saturation cannot be reached on a single node — the web CPU ceiling is always hit first. The one exception is connection exhaustion under sustained overload (Experiment 3C, Phase 4), which is a connection management failure rather than a throughput failure.
 
 ### Instance size as a binding constraint
 
-The vertical scaling comparison between t3.medium and t3.large is one of the clearest results in the project. The same configuration change — WEB_CONCURRENCY=4 — eliminated all failures on t3.large and introduced new 502 errors on t3.medium. Worker tuning is not universally beneficial: it is a function of available hardware resources.
+The vertical scaling comparison between t3.medium and t3.large is one of the clearest results in the project. The same configuration change — WEB_CONCURRENCY=4 — eliminated all failures on t3.large and introduced new 502 errors on t3.medium. Worker tuning is not universally beneficial: it is a function of available hardware resources. The extended federation test (Experiment 3C) further demonstrated this: on a t2.large with 2 vCPUs, increasing MAX_THREADS from 5 to 10 (20 to 40 Puma threads) provided no benefit because the CPU could not context-switch fast enough to serve them.
 
 ### Federation and eventual consistency
 
-The federation latency experiment and the component dependency experiment together reveal a coupling unique to federated architectures. Sidekiq starvation under load (Experiment 3) and Sidekiq being fully stopped (Experiment 4) produce the same outcome through different mechanisms — queue backup, delayed delivery, and eventual federation failure. A loaded instance is simultaneously a degraded federation participant, meaning one instance's local performance problem becomes another instance's consistency problem. Mastodon effectively chooses availability over consistency: a post will eventually be delivered, but there is no guarantee of when.
+The federation latency experiments (3B and 3C) together reveal an asymmetry in how load affects federation. Loading the **receiving** instance degrades federation delivery through Sidekiq CPU starvation — latency spikes and eventually times out. Loading the **sending** instance does not degrade federation delivery at all — latency remains flat because the bottleneck is upstream at Puma, and Sidekiq on the sender processes delivery jobs in ~0.08s each.
+
+This asymmetry has practical implications: in a federated network, the instance that is under the most user load is also the worst federation participant as a **receiver**, but remains a reliable federation participant as a **sender**. A popular instance that is struggling under its own traffic will still deliver posts outward efficiently, but will receive posts from other instances with increasing delay. This is a form of cascading degradation unique to federated architectures — one instance's local performance problem becomes another instance's consistency problem, but only in one direction.
+
+Mastodon effectively chooses availability over consistency: a post will eventually be delivered, but there is no guarantee of when.
+
+### PostgreSQL connection leaking as a hidden failure mode
+
+Experiment 3C revealed that sustained HTTP overload causes PostgreSQL connections to leak — they are acquired by Puma threads for requests that fail or hang, but are never released. After a 200-user Locust run, the connection count remained at max even after the test ended, requiring a container restart to recover. This is a failure mode that would not be visible in standard monitoring (the web layer would show errors, but the root cause — connection pool exhaustion — would be obscured). In production, connection pooling middleware such as PgBouncer would mitigate this by managing connections independently of Puma's request lifecycle.
 
 ### Deployment constraints as a distributed systems lesson
 
@@ -313,7 +503,7 @@ Our pivot from CloudFormation / ECS to EC2 + Docker Compose was not merely a log
 
 ---
 
-## 6. What Remains
+## 7. What Remains
 
 - **Final report** — integrate all results into the complete written submission
 - **Presentation** — Apr 13 or April 20
@@ -321,14 +511,12 @@ Our pivot from CloudFormation / ECS to EC2 + Docker Compose was not merely a log
 
 ---
 
-## 7. Updated Timeline
+## 8. Updated Timeline
 
 | Date | Task |
 |------|------|
 | Apr 9 | Experiment 2 complete on both instances ✅ |
 | Apr 10 | Federation latency test complete ✅ |
 | Apr 11–12 | Component dependency isolation complete ✅ |
-| Apr 11–12 | Final report draft |
-| Apr 12 | Rehearsal |
-| Apr 13 | Presentation |
-| Apr 14–20 | Final submission |
+| Apr 13–14 | Extended federation stress test (Experiment 3C) complete ✅ |
+| Apr 14–20 | Final report and submission |

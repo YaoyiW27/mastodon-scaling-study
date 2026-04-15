@@ -1,0 +1,8 @@
+Method,Name,Error,Occurrences
+GET,/api/v1/timelines/home,CatchResponseError('Got 500'),77
+POST,/api/v1/statuses/:id/favourite,HTTPError('422 Client Error: Unprocessable Content for url: /api/v1/statuses/:id/favourite'),2
+GET,/api/v1/notifications,CatchResponseError('Got 500'),12
+POST,/api/v1/statuses [POST],"CatchResponseError('Got 429: {""error"":""Too many requests""}')",183
+POST,/api/v1/statuses [POST],"CatchResponseError(""Got 500: <!DOCTYPE html>\n<html lang='en'>\n<head>\n<meta content='text/html; charset=UTF-8' http-equiv='Content"")",37
+GET,/api/v2/search,CatchResponseError('Got 500'),2
+POST,/api/v1/statuses/:id/favourite,HTTPError('500 Server Error: Internal Server Error for url: /api/v1/statuses/:id/favourite'),6

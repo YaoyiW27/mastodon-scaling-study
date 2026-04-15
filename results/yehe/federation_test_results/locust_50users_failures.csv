@@ -1,0 +1,3 @@
+Method,Name,Error,Occurrences
+POST,/api/v1/statuses/:id/favourite,HTTPError('422 Client Error: Unprocessable Content for url: /api/v1/statuses/:id/favourite'),3
+POST,/api/v1/statuses [POST],"CatchResponseError('Got 429: {""error"":""Too many requests""}')",126
