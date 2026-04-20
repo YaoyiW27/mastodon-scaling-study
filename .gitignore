@@ -1,3 +1,4 @@
-.env*
+.env.yaoyi.local
 *.local
 *.pem
+.DS_Store
